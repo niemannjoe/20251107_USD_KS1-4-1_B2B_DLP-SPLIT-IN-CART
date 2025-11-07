@@ -1,0 +1,666 @@
+<script>
+
+  // ===== NEW SERVICE FEE LOGIC (PER-PARENT) =====
+  const SERVICE_VARIANT_ID = '43167575539897';
+  let isUpdatingFee = false; // Prevents the function from running multiple times at once
+
+  /**
+  * Updates the cart and dispatches the final cart state to the UI.
+  */
+  async function updateCart(updates) {
+    await fetch('/cart/update.js', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates })
+    });
+
+    // We've updated the fee, so we must fetch the cart *again*
+    // to get the final, correct state before updating the UI.
+    const finalCart = await (await fetch('/cart.js')).json();
+
+    // Dispatch the final cart data to the theme's UI (Alpine)
+    window.dispatchEvent(new CustomEvent('cart:update-data', {
+      bubbles: true, 
+      detail: { cart: finalCart }
+    }));
+
+    // Also dispatch the old event, just in case
+    document.dispatchEvent(new CustomEvent('cart:updated', { bubbles: true }));
+
+    isUpdatingFee = false; // Release the flag
+  }
+
+  /**
+  * Checks the cart and sets the service fee quantity to match
+  * the number of *unique parent products* that have a logo.
+  */
+  async function manageServiceProduct() {
+    // Prevent multiple calls from firing at once
+    if (isUpdatingFee) {
+        console.log('Custom Cart Logic: Fee update already in progress. Skipping.');
+        return;
+    }
+    isUpdatingFee = true;
+    console.log('Custom Cart Logic: Running manageServiceProduct (per-product).');
+
+    if (!SERVICE_VARIANT_ID || SERVICE_VARIANT_ID === '00000000000000') {
+      console.error('Service product variant ID is not set. Aborting.');
+      isUpdatingFee = false;
+      return;
+    }
+
+    try {
+      const cart = await (await fetch('/cart.js')).json();
+      let serviceFeeCount = 0;
+
+      // NEW LOGIC: Use a Set to count unique parent products
+      const logoProductIds = new Set();
+
+      for (const item of cart.items) {
+        // Check for the service fee item itself
+        if (item.variant_id.toString() === SERVICE_VARIANT_ID) {
+          serviceFeeCount = item.quantity;
+        }
+
+        // Check for any item that has our logo property
+        if (item.properties && item.properties._service_required === 'true') {
+          // Add the PARENT product ID to the Set.
+          // A Set automatically handles duplicates.
+          logoProductIds.add(item.product_id);
+        }
+      }
+
+      // The count is now the number of unique product IDs
+      const logoProductCount = logoProductIds.size;
+
+      console.log(`Custom Cart Logic: Unique logo product count: ${logoProductCount}`);
+      console.log(`Custom Cart Logic: Service fee count in cart: ${serviceFeeCount}`);
+
+      // If the counts don't match, update the cart.
+      if (logoProductCount !== serviceFeeCount) {
+        console.log(`%cCustom Cart Logic: Condition met. Setting service product quantity to ${logoProductCount}.`, 'color: green; font-weight: bold;');
+        // This will set the fee to 1, 2, etc., based on your new rule.
+        updateCart({ [SERVICE_VARIANT_ID]: logoProductCount }); 
+        return; // updateCart will release the flag
+      }
+
+      console.log('Custom Cart Logic: No action needed. Counts match.');
+
+      const finalCart = await (await fetch('/cart.js')).json();
+      window.dispatchEvent(new CustomEvent('cart:update-data', {
+        bubbles: true,
+        detail: { cart: finalCart }
+      }));
+
+    } catch (error) {
+      console.error('Error in manageServiceProduct:', error);
+    }
+
+    isUpdatingFee = false; // Release flag if no update was needed
+  }
+  // ===== END OF NEW SERVICE FEE LOGIC =====
+
+  console.log('--- MODAL FIX (FINAL) --- SCRIPT LOADED');
+
+  // --- Global variables for modal state ---
+  window.modalGlobalDesiredQuantity = 1;
+  window.modalGlobalCartKey = null;
+  window.activeLogoModal = null; // Will store the modal that is open
+  window.modalGlobalProductId = null;
+
+  // --- Helper Functions (defined globally so all our functions can use them) ---
+  function readVariantPreviewMap() {
+    try {
+      const el = document.getElementById("variant-preview-map");
+      return el ? JSON.parse(el.textContent || "{}") : {};
+    } catch { return {}; }
+  }
+
+  function getVariantBaseUrl(variantId) {
+    const map = readVariantPreviewMap();
+    const raw = map[String(variantId)];
+    if (typeof raw === 'string') {
+      return raw.startsWith("//") ? "https:" + raw : raw;
+    } else {
+      console.warn(`getVariantBaseUrl: No valid URL string found in map for variantId: ${variantId}. Map contained:`, map);
+      return "";
+    }
+  }
+
+  function getVariantTitleFromTrigger(trigger) {
+    const dataTitle = trigger.getAttribute('data-variant-title');
+    if (dataTitle) return dataTitle.trim();
+    const row = trigger.closest(".variant-row");
+    const attr = row?.getAttribute("data-options");
+    if (attr) return attr.trim();
+    const label = row?.querySelector(".variant-title")?.textContent || "";
+    return label.trim();
+  }
+
+  function fileToDataURL(file) {
+    return new Promise((resolve) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result || ""));
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function getExistingLogoFile(preferredKey) {
+    const fi = document.querySelector(".logo-preview_input-element");
+    if (fi && fi.files && fi.files[0]) return fi.files[0];
+    const store = (typeof getSessionInformation === "function" && getSessionInformation()) || {};
+    if (preferredKey && store[preferredKey]?.logoDataUrl) {
+      try {
+        return dataURLtoFile(
+          store[preferredKey].logoDataUrl,
+          store[preferredKey].logoName || "logo.png"
+        );
+      } catch {}
+    }
+    if (typeof getLastUploadedLogoFile === "function") return getLastUploadedLogoFile() || null;
+    return null;
+  }
+
+  function readVectorDataURL(preferredKey) {
+    const store = (typeof getSessionInformation === "function" && getSessionInformation()) || {};
+    if (preferredKey && store[preferredKey]?.logoDataUrl) return store[preferredKey].logoDataUrl;
+    const any = Object.values(store).reverse().find(v => v && v.logoDataUrl);
+    return any?.logoDataUrl || "";
+  }
+
+  function setHidden(form, name, value) {
+    let input = form.querySelector(`input[name="${name.replace(/"/g, '\\"')}"]`);
+    if (!input) {
+      input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      form.appendChild(input);
+    }
+    input.value = value || "";
+    return input;
+  }
+
+  function prepVariantCanvas(variantId, variantTitle) {
+    const mediaId = `logo-preview_${variantId}`;
+    if (typeof window.swapLogoPreviewToVariant === "function") {
+      window.swapLogoPreviewToVariant(String(variantId), variantTitle || "");
+    }
+    const file = getExistingLogoFile(variantTitle);
+    if (file && typeof window.renderLogoFile === "function") {
+      window.renderLogoFile(file, { skipUpload: true, targetMediaId: mediaId });
+    }
+  }
+
+  function readCanvasDataURL(mediaId) {
+    const cv = document.querySelector(`.logo-preview_canvas[data-media-id="${mediaId}"]`);
+    if (cv && cv.width && cv.height && typeof cv.toDataURL === "function") {
+      try { return cv.toDataURL("image/png"); } catch {}
+    }
+    return "";
+  }
+
+  async function getPreviewDataURLForVariant(variantId, variantTitle) {
+    const mediaId = `logo-preview_${variantId}`;
+    prepVariantCanvas(variantId, variantTitle);
+    for (let i = 0; i < 6; i++) {
+      const url = readCanvasDataURL(mediaId);
+      if (url) return url;
+      await new Promise(r => setTimeout(r, 60));
+    }
+    return getVariantBaseUrl(variantId) || "";
+  }
+
+  async function syncModalFormPropertiesFromModal(variantId, variantTitle) {
+    const modal = window.activeLogoModal;
+    if (!modal) return;
+
+    // ** FIX **: Find form *inside* the active modal
+    const form = modal.querySelector("#modal-preview-form");
+    if (!form) {
+        console.warn("syncModalFormPropertiesFromModal: Could not find form *inside* active modal.");
+        return;
+    }
+
+    const folderKey = variantTitle || String(variantId);
+    const idKey = `id:${String(variantId)}`;
+    const store = (typeof getSessionInformation === "function" && getSessionInformation()) || {};
+    const modalImg = modal.querySelector(".logo-preview_carousel img");
+
+    if (modalImg) {
+      modalImg.style.display = "none";
+    }
+
+    let previewSrc = modalImg?.src || "";
+    if (!previewSrc || previewSrc.startsWith("data:")) {
+      previewSrc = await getPreviewDataURLForVariant(variantId, variantTitle);
+    }
+    async function urlToFile(url, filename) {
+      const res = await fetch(url, { cache: "no-store" });
+      const blob = await res.blob();
+      return new File([blob], filename, { type: blob.type || "image/png" });
+    }
+    let previewFile = null;
+      if (previewSrc.startsWith("data:")) {
+        previewFile = dataURLtoFile(previewSrc, "preview.png");
+    } else if (/^https?:\/\//i.test(previewSrc)) {
+      try {
+        previewFile = await urlToFile(previewSrc, "preview.png");
+      } catch (err) {
+        console.warn('urlToFile failed (likely CORS). Skipping file conversion.', err);
+        previewFile = null;
+      }
+    }
+    let logoFile = getExistingLogoFile(variantTitle);
+
+    if (!logoFile) {
+      const vectorData = readVectorDataURL(variantTitle);
+      if (vectorData) {
+        try { logoFile = dataURLtoFile(vectorData, "logo.png"); } catch {}
+      }
+    }
+    if (!logoFile) logoFile = new File([new Blob()], "empty.png", { type: "image/png" });
+    let previewCdn = "";
+    let logoCdn = "";
+    if (modalImg) {
+      modalImg.style.display = '';
+    }
+    try {
+      const { previewUrl, logoUrl } = await uploadFiles(logoFile, previewFile, folderKey); 
+      if (previewUrl?.status === "fulfilled") previewCdn = previewUrl.value;
+      if (logoUrl?.status === "fulfilled")    logoCdn    = logoUrl.value;
+      const current = (typeof getSessionInformation === "function" && getSessionInformation()) || {};
+      const productKey = `product:${window.modalGlobalProductId}`; // <-- Use the Product ID
+      
+      const toSave = {
+        preview: previewCdn || (current[productKey]?.preview || ""),
+        logo:    logoCdn    || (current[productKey]?.logo    || ""),
+      };
+      if (typeof updateSessionInformation === "function") {
+        updateSessionInformation(productKey, toSave);
+      }
+    } catch (err) {
+      console.warn("syncModalFormPropertiesFromModal: upload failed; using fallbacks", err);
+      previewCdn = store[idKey]?.preview || store[folderKey]?.preview || previewSrc || "";
+      logoCdn    = store[idKey]?.logo    || store[folderKey]?.logo    || readVectorDataURL(variantTitle) || "";
+    }
+    setHidden(form, 'properties[_PreviewImage]', previewCdn || previewSrc || "");
+    setHidden(form, 'properties[_VectorImage]',  logoCdn    || readVectorDataURL(variantTitle) || "");
+    if (modalImg) {
+      const finalSrc = previewCdn || previewSrc || "";
+      if (finalSrc && modalImg.src !== finalSrc) {
+        modalImg.src = finalSrc;
+        modalImg.setAttribute("data-zoom", finalSrc);
+      }
+    }
+  }
+
+  // --- This function finds the "fixed" modal and opens it ---
+  function openLogoModal(triggerElement) {
+    if (!triggerElement) {
+        console.error('openLogoModal: triggerElement was not provided.');
+        return;
+    }
+    console.log('openLogoModal() called with element:', triggerElement);
+
+    let modal = null;
+    const allModals = document.querySelectorAll('.logo-preview_modal');
+    for (const m of allModals) {
+      const btn = m.querySelector('.modal-submit-button');
+      if (btn && btn.hasAttribute('onclick') && btn.getAttribute('onclick').includes('addLogoItemToCartFromModal')) {
+        modal = m; 
+        break;
+      }
+    }
+
+    if (!modal) {
+      console.error('openLogoModal: Could not find the "fixed" modal (the one with the simple onclick="" button). Aborting.');
+      return;
+    }
+
+    window.activeLogoModal = modal; // Store the correct modal globally
+
+    const triggerId = triggerElement.getAttribute('data-variant-id') || '';
+    if (!triggerId) {
+        console.error('openLogoModal: Could not get data-variant-id from trigger element.');
+        return;
+    }
+    console.log('openLogoModal: Variant ID:', triggerId);
+
+    // ** FIX **: Find form *inside* the active modal
+    const form = modal.querySelector('#modal-preview-form');
+    if (form) {
+        let idInput = form.querySelector('input[name="id"]');
+        if (!idInput) {
+            idInput = document.createElement('input');
+            idInput.type = 'hidden';
+            idInput.name = 'id';
+            form.appendChild(idInput);
+        }
+        idInput.value = triggerId;
+    } else {
+        console.error('openLogoModal: Could not find #modal-preview-form *inside* the active modal.');
+    }
+
+    const submitBtn = modal.querySelector('.modal-submit-button');
+    if (submitBtn) { submitBtn.setAttribute('data-open-variant-id', String(triggerId)); }
+
+    const carousel = modal.querySelector('.logo-preview_carousel');
+    if (!carousel) {
+        console.error('openLogoModal: Could not find modal carousel element.');
+        return;
+    }
+
+    const variantTitle = getVariantTitleFromTrigger(triggerElement);
+
+    getPreviewDataURLForVariant(triggerId, variantTitle).then((dataUrl) => {
+        const src = dataUrl || getVariantBaseUrl(triggerId) || '';
+        carousel.innerHTML = '';
+        const img = document.createElement('img');
+        img.alt = variantTitle || 'Logo preview';
+        img.src = src;
+        img.decoding = 'async';
+        img.loading = 'eager';
+        carousel.appendChild(img);
+
+        const store = (typeof getSessionInformation === "function" && getSessionInformation()) || {};
+        const anySaved = Object.values(store).find((v) => v && v.logoDataUrl);
+        const logoLinkEl = modal.querySelector('#logo-link');
+        if (logoLinkEl && anySaved) {
+            logoLinkEl.href = anySaved.logoDataUrl;
+            logoLinkEl.setAttribute('download', anySaved.logoName || 'logo.png');
+        }
+
+        modal.classList.remove('close');
+
+        setTimeout(() => {
+            syncModalFormPropertiesFromModal(triggerId, variantTitle);
+        }, 50);
+
+    }).catch(error => {
+        console.error('openLogoModal: Error in getPreviewDataURLForVariant:', error);
+        alert('Could not prepare logo preview.');
+    });
+  }
+
+
+  // --- This is our "smart" submit function ---
+  window.addLogoItemToCartFromModal = async function() {
+    console.log('--- GLOBAL addLogoItemToCartFromModal (FINAL & CORRECT) FIRED ---');
+
+    const visibleModal = window.activeLogoModal;
+    if (!visibleModal || visibleModal.classList.contains('close')) {
+      console.error('Could not find the activeLogoModal, or it is closed. Aborting.');
+      return;
+    }
+
+    // ** FIX **: Find form *inside* the active modal
+    const form = visibleModal.querySelector("#modal-preview-form");
+    if (!form) {
+        console.warn("modal-preview-form not found *inside active modal*.");
+        return;
+    }
+
+    let quantity = window.modalGlobalDesiredQuantity;
+    let key = window.modalGlobalCartKey;
+
+    console.log(`addLogoItemToCartFromModal: Using quantity: ${quantity} and key: ${key}`);
+
+    if (isNaN(quantity) || quantity < 0) { 
+        console.warn('addLogoItemToCartFromModal: modalDesiredQuantity was invalid, defaulting to 1.');
+      quantity = 1; 
+    }
+
+    const variantId = form.querySelector('input[name="id"]')?.value || "";
+    const previewUrl = form.querySelector('input[name="properties[_PreviewImage]"]')?.value || "";
+    const vectorUrl = form.querySelector('input[name="properties[_VectorImage]"]')?.value || "";
+    const variantOpt = form.querySelector('input[name="properties[_VariantOption]"]')?.value || "";
+
+    const notesEl = form.querySelector("#notes"); 
+    const notes = notesEl ? notesEl.value : "";
+
+    if (!variantId) {
+        alert("Please select a variant before adding to cart.");
+        return;
+    }
+
+    // ** FIX **: Find checkboxes *inside* the active form
+    const rtReq = form.querySelector('input[name="right-to-use"]');
+    const paReq = form.querySelector('input[name="preview-approved"]');
+
+    if ((rtReq && !rtReq.checked) || (paReq && !paReq.checked)) {
+        alert("Please certify and approve the terms before adding to cart.");
+        return;
+    }
+
+    let baseProductId = window.modalGlobalProductId;
+
+    let payload = {};
+    let url = '/cart/add.js';
+
+    const properties = {
+        _PreviewImage: previewUrl,
+        _VectorImage: vectorUrl,
+        _service_required: 'true',
+        "Customization Notes": "Auto-approved item",
+        "Right to Use": rtReq?.checked ? "Yes" : "No",
+        "Preview Approved": paReq?.checked ? "Yes" : "No"
+    };
+
+    if (key) {
+      console.log('Logic: Item key exists. Using /cart/change.js');
+      url = '/cart/change.js';
+      payload = {
+        id: key,
+        quantity: quantity,
+        properties: properties
+      };
+    } 
+    else if (quantity > 0) {
+      console.log('Logic: No item key, quantity > 0. Using /cart/add.js');
+      url = '/cart/add.js';
+      payload = {
+        items: [
+          {
+            id: Number(variantId),
+            quantity: quantity,
+            properties: properties
+          },
+        ],
+      };
+    } 
+    else {
+      console.log('Logic: No item key and quantity is 0. Doing nothing.');
+      visibleModal.classList.add("close"); 
+      return;
+    }
+
+    const btn = visibleModal.querySelector(".js-modal-submit"); 
+    if(btn) btn.classList.add("button-loading");
+
+    try {
+      console.log(`addLogoItemToCartFromModal: Sending payload to ${url}:`, JSON.stringify(payload));
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      console.log('addLogoItemToCartFromModal: Item operation successful.');
+
+      visibleModal.classList.add("close"); 
+      if(baseProductId && quantity > 0) {
+          window.dispatchEvent(new CustomEvent('modal:approved', { detail: { productId: baseProductId }}));
+      }
+
+    // run out new function. It will update the fee AND refresh the cart UI.  
+    manageServiceProduct();
+
+    } catch (err) {
+      console.error(`addLogoItemToCartFromModal: Error with ${url}:`, err);
+      alert("Could not update cart. Please try again.");
+    } finally {
+      window.modalGlobalDesiredQuantity = 1;
+      window.modalGlobalCartKey = null;
+      window.modalGlobalProductId = null;
+      if(btn) btn.classList.remove("button-loading");
+    }
+  }
+
+
+  // --- This part runs *after* the page is loaded ---
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('--- MODAL FIX (FINAL & CORRECT) --- DOMCONTENTLOADED FIRED');
+
+    // Listen for the event from Alpine
+    window.addEventListener('modal:open', (event) => {
+      console.log('modal:open listener fired, received:', event.detail);
+
+      if (event.detail && typeof event.detail.desiredQuantity === 'number' && event.detail.desiredQuantity >= 0) {
+        window.modalGlobalDesiredQuantity = event.detail.desiredQuantity;
+      } else {
+         window.modalGlobalDesiredQuantity = 1;
+      }
+      window.modalGlobalCartKey = event.detail.cartKey || null;
+      window.modalGlobalProductId = event.detail.productId || null;
+
+      const trigger = event.detail.triggerElement;
+      if (!trigger) {
+        console.error('modal:open event had no triggerElement. Aborting.');
+        return;
+      }
+      openLogoModal(trigger);
+    });
+
+    // Listen for the modal close
+    document.addEventListener("click", function onOutsideClose(e) {
+      const modals = document.querySelectorAll(".logo-preview_modal");
+      if (!modals.length) return;
+
+      modals.forEach(modal => {
+        const inner = modal.querySelector(".logo-preview_inner-modal");
+        if (!inner) return;
+
+        const clickedInside = inner.contains(e.target);
+        const clickedTrigger = !!e.target.closest('[x-data] .pdp-input-element, [x-data] .btn');
+
+        if (!clickedInside && !clickedTrigger) {
+            modal.classList.add("close");
+        }
+      });
+    });
+
+    // --- ADD THIS NEW FUNCTION ---
+    window.addApprovedLogoItemToCart = async function(variantId, quantity, baseProductId, variantTitle) {
+      console.log('--- GLOBAL addApprovedLogoItemToCart FIRED ---');
+      if (!variantId) {
+        console.warn('addApprovedLogoItemToCart: Invalid variantId.');
+        return false;
+      }
+
+      try {
+        // First, get the current cart state
+        const cart = await (await fetch('/cart.js')).json();
+
+        // Find the properties from *any* item of this parent product
+        const existingItem = cart.items.find(item => 
+            item.product_id === baseProductId && 
+            item.properties && 
+            item.properties._service_required === 'true'
+        );
+
+        if (!existingItem) {
+          // This should not happen, but if it does, open the modal.
+          console.warn(`addApprovedLogoItemToCart: Could not find an existing item in cart for product ID ${baseProductId}. Opening modal instead.`);
+          const triggerButton = document.querySelector(`.hidden-modal-trigger-button[data-variant-id="${variantId}"]`);
+          if (triggerButton) {
+              window.dispatchEvent(new CustomEvent('modal:open', { 
+                detail: { 
+                  desiredQuantity: quantity,
+                  cartKey: null,
+                  productId: baseProductId,
+                  triggerElement: triggerButton
+                } 
+              }));
+          }
+          return false; // Abort this silent add
+        }
+
+        // We found an existing item! We will use its exact properties.
+        const properties = existingItem.properties;
+
+        // Now, check if this *specific variant* is already in the cart *with these properties*
+        const existingVariantLineItem = cart.items.find(item => 
+            item.variant_id == variantId && 
+            JSON.stringify(item.properties) === JSON.stringify(properties)
+        );
+
+        let payload = {};
+        let url = '';
+
+        if (existingVariantLineItem) {
+          // IT IS! We use /cart/change.js to *merge* them.
+          console.log(`Item ${variantId} found with matching properties. Using /cart/change.js.`);
+          url = '/cart/change.js';
+          payload = {
+            id: existingVariantLineItem.key,
+            quantity: quantity, // Set to the new TOTAL quantity
+            properties: properties
+          };
+        } else {
+          // It's a new variant (e.g., "Medium" after "Small"). We use /cart/add.js.
+          console.log(`Item ${variantId} is a new variant. Using /cart/add.js.`);
+          url = '/cart/add.js';
+          payload = {
+            items: [{
+              id: Number(variantId),
+              quantity: quantity,
+              properties: properties
+            }]
+          };
+        }
+
+        // Send the request
+        console.log(`addApprovedLogoItemToCart: Sending payload to ${url}:`, JSON.stringify(payload));
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(await res.text());
+
+        console.log('addApprovedLogoItemToCart: Item operation successful.');
+        if(baseProductId) {
+          window.dispatchEvent(new CustomEvent('modal:approved', { detail: { productId: baseProductId }}));
+        }
+
+        // Run the service fee logic, which will fetch the cart AND update the UI
+        manageServiceProduct();
+        return true; 
+
+      } catch (err) {
+        console.error(`addApprovedLogoItemToCart: Error with cart operation:`, err);
+        alert("Could not add item. Please try again.");
+        return false;
+      }
+    }
+
+    // --- ADD THIS CODE ---
+    // Listen for the Discount Ninja cart refresh event
+    document.addEventListener('limoniapps:discountninja:drawercart:refreshed', function (event) {
+      
+      // Get the new cart data provided by Discount Ninja
+      var cart = event.detail.data[0];
+
+      // Dispatch your theme's internal 'cart:update-data' event
+      // This is the "your_code_to_call_internal_theme_code_here(cart)" part
+      window.dispatchEvent(new CustomEvent('cart:update-data', {
+        bubbles: true, 
+        detail: { cart: cart }
+      }));
+
+    }, false);
+    // --- END OF NEW CODE ---
+
+  }); // End of DOMContentLoaded
+</script>

@@ -1,0 +1,41 @@
+<!-- snippets/product__gallery-fullscreen.liquid -->
+{% comment %} 
+  A fullscreen overlay of zoomable product images. This snippet is used to display a fullscreen gallery of product images, 
+  where each image can be zoomed in and out by clicking on it. The gallery also supports navigation through arrows.
+
+  Accepts:
+  - is_featured: {boolean} Assigns product object from section settings. Set this to true if block is used within a section rather than product template.
+
+  Usage:
+    {% render 'product__gallery-fullscreen', 
+      is_featured: true 
+    %}
+
+  Recommendations:
+  - Use this snippet to display a fullscreen gallery of product images in a product detail page.
+  - Ensure that the product images are high resolution as they can be zoomed in.
+{% endcomment %}
+
+{% if is_featured %}
+
+  {% comment %} Set product based on section settings {% endcomment %}
+  {% assign product_handle = section.settings.product %}
+  {% assign product = all_products[product_handle] %}
+
+  {% comment %} Set placeholder product if blank {% endcomment %}
+  {% if request.design_mode and product == null  %}
+    {% for product in collections['all'].products limit:1 %}
+      {% assign product = product %}
+    {% endfor %}
+  {% endif %}
+
+{% endif %}
+
+{% capture fullscreen_content %}
+  {% render 'gallery__fullscreen', product: product %}
+{% endcapture %}
+
+{% render 'component__fullscreen', 
+  fullscreen_id: 'fullscreen',
+  content: fullscreen_content 
+%}

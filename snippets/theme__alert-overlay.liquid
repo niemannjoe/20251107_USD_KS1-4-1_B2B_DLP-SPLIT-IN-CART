@@ -1,0 +1,113 @@
+<!-- snippets/theme__alert-overlay.liquid -->
+{% comment %}
+  overlay overlay to display site wide error messages.
+
+  Usage:
+    {% render 'theme__alert-overlay' %}
+
+  Recommendations:
+  - When an error message is displayed this overlay will be shown.
+  - Use this snippet to display promotional discounts to the user.
+  - Ensure that the discount_text and discount_code are set appropriately.
+  - Enable or disable the discount overlay using the 'discount_alert' global variable.
+  - For automatic discounts, attach discount values to URL parameters.
+  - Example: .com/discount/13KS94BNGCS8?dt=Save+50%25+storewide
+    - '13KS94BNGCS8' is the discount code.
+    - 'Save+50%25+storewide' is the discount text.
+{% endcomment %}
+
+{% capture error_alert_content %}
+  <div class="flex flex-col gap-1">
+    <div class="flex items-center justify-between gap-2">
+      <p class="type--smaller">
+        {{ 'labels.error' | t }}
+      </p>
+      <button class="btn btn--smaller
+        {{ settings.close_button_color }}"
+        title="{{ 'actions.close' | t }}"
+        @click="error_alert = false">
+        {% if settings.close_button_content contains 'icon' %}
+          {% render 'component__icon', icon: 'x', size: '14' %} 
+        {% endif %}
+        {% if settings.close_button_content contains 'text' %}
+          <span>
+            {{ 'actions.close' | t }}
+          </span>
+        {% endif %}
+      </button>
+    </div>
+    <p 
+      class="type--smaller" 
+      x-text="error_message"></p>
+  </div>
+{% endcapture %}
+
+{% capture cart_update_alert_content %}
+    <div 
+      class="color__bg-text absolute left-0 top-0 h-0.5 w-full overflow-hidden mix-blend-difference">
+      <div class="color__bg-text">
+        <div 
+          class="color__bg-body animation-5000--all h-0.5 w-0 opacity-50" 
+          :style="{ width: cart.progress_bar_delay_width }"></div>
+      </div>
+    </div>
+    <div class="flex items-center justify-between gap-2">
+      <p class="type--smaller">
+        {% render 'component__icon', icon: 'check', size: '14' %} {{ 'info.cart_updated' | t }}
+      </p>
+      <button class="btn btn--smaller
+        {{ settings.close_button_color }}"
+        title="{{ 'actions.close' | t }}"
+        @click="cart_alert = false">
+        {% if settings.close_button_content contains 'icon' %}
+          {% render 'component__icon', icon: 'x', size: '14' %} 
+        {% endif %}
+        {% if settings.close_button_content contains 'text' %}
+          <span>
+            {{ 'actions.close' | t }}
+          </span>
+        {% endif %}
+      </button>
+    </div>
+{% endcapture %}
+
+{% capture discount_alert_content %}
+  <div class="flex flex-col gap-1">
+    <div class="flex items-center justify-between gap-2">
+      <p 
+        class="type--smaller"
+        x-text="discount_text">
+      </p>
+      <button class="btn btn--smaller
+        {{ settings.close_button_color }}"
+        title="{{ 'actions.close' | t }}"
+        @click="cart_alert = false">
+        {% if settings.close_button_content contains 'icon' %}
+          {% render 'component__icon', icon: 'x', size: '14' %} 
+        {% endif %}
+        {% if settings.close_button_content contains 'text' %}
+          <span>
+            {{ 'actions.close' | t }}
+          </span>
+        {% endif %}
+      </button>
+    </div>
+    <p 
+      class="type--smaller">
+      <strong x-text="discount_code"></strong> {{ 'info.discount_at_checkout' | t | downcase }}
+    </p>
+  </div>
+{% endcapture %}
+
+<div
+  class="fixed right-0 top-0 z-50 flex w-full flex-col items-end gap-2"
+  x-data="
+    {
+      alert_id: true
+    }
+  "
+>
+  {% render 'component__alert', alert_id: 'error_alert', closeable: true, content: error_alert_content %}
+  {% render 'component__alert', alert_id: 'discount_alert', closeable: true, content: discount_alert_content %}
+  {% render 'component__alert', alert_id: 'cart_alert', closeable: true, content: cart_update_alert_content %}
+</div>

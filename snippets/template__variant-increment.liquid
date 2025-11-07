@@ -1,0 +1,225 @@
+<!-- snippets/template__variant-increment.liquid -->
+{% comment %}
+  This renders a quantity picker to adjust the quantity of a variant in the cart.
+
+  Globals:
+  - settings: No global settings variables are used in this file.
+
+  Usage:
+    {% render 'template__variant-increment' %}
+
+  Recommendations:
+  - Use this within a <template> tag with AlpineJS enabled.
+{% endcomment %}
+
+{% if is_overlay == true %}
+  {% assign open_cart = false %}
+{% else %}
+  {% assign open_cart = true %}
+{% endif %}
+
+<div
+  x-data="
+    {
+      button_loading: false,
+      quantity: ''
+    }
+  "
+>
+  {% comment %} Template - will use real cart count {% endcomment %}
+  <template x-for="(cartItem, index) in cart.items.filter(cartItem => cartItem.variant_id === item.variants[0].id)">
+    <div
+      class="flex w-full items-center justify-between {{ container_class }}"
+    >
+      <div class="group relative w-full">
+        <label
+          class="sr-only"
+          :for="`{{ section.id }}-${item.variants[0].id}-quantity`"
+        >
+          {{ 'labels.quantity' | t }}
+        </label>
+        <div
+          class="border__input--radius border__input color__border-input hover:border__input--hover focus-within:border__input--focus relative flex overflow-hidden {{ input_class }}"
+        >
+          <input
+            :id="`{{ section.id }}-${item.variants[0].id}-quantity`"
+            class="!rounded-none !border-0 text-center"
+            type="number"
+            placeholder="0"
+            min="1"
+            x-model="cartItem.quantity"
+            @change.debounce="
+              button_loading = true;
+              quantity = cartItem.quantity;
+              changeCartItemQuantity(
+                cartItem.key,
+                quantity,
+                {{ open_cart }},
+                false
+              );
+              setTimeout(function(){ button_loading = false}, 2000);
+            "
+          >
+          <div
+            class="invisible absolute left-0 top-0 h-0.5 w-full overflow-hidden"
+            :class="{ '!visible !z-10' : button_loading && cart_loading }"
+          >
+            <div class="color__bg-shade-2">
+              <div
+                class="color__bg-text h-0.5 w-0"
+                :class="{ 'animate-widthexpand': button_loading && cart_loading }"
+              ></div>
+            </div>
+          </div>
+          <div class="color__bg-input color__input absolute left-0 flex h-full flex-col justify-center gap-0">
+            <button
+              class="btn btn--smaller btn--plain color__outline-input outline--width !h-full shrink-0 !rounded-none !px-2"
+              title="{{ 'actions.decrease_item_quantity' | t }}"
+              type="button"
+              tabindex="-1"
+              @click.prevent="
+                button_loading = true;
+                quantity = cartItem.quantity - 1;
+                if (cartItem.quantity >= 1){
+                  changeCartItemQuantity(
+                    cartItem.key,
+                    quantity,
+                    {{ open_cart }},
+                    false
+                  );
+                }
+                setTimeout(function(){ button_loading = false}, 2000);
+              "
+            >
+              {% render 'component__icon', icon: 'minus', size: '14', class: '' %}
+            </button>
+          </div>
+          <div class="color__bg-input color__input absolute right-0 flex h-full flex-col justify-center gap-0">
+            <button
+              class="btn btn--smaller btn--plain color__outline-input outline--width !h-full shrink-0 !rounded-none !px-2"
+              title="{{ 'actions.increase_item_quantity' | t }}"
+              type="button"
+              tabindex="-1"
+              @click.prevent="
+                button_loading = true;
+                quantity = cartItem.quantity + 1;
+                changeCartItemQuantity(
+                  cartItem.key,
+                  quantity,
+                  {{ open_cart }},
+                  false
+                );
+                setTimeout(function(){ button_loading = false}, 2000);
+              "
+            >
+              {% render 'component__icon', icon: 'plus', size: '14', class: '' %}
+            </button>
+          </div>
+        </div>
+      </div>
+      {% if show_totals %}
+        <span class="hidden flex-col items-end md:flex">
+          <span class="type--smaller opacity-75"> {{ 'labels.total' | t }}: </span>
+          <span x-html="Shopify.formatMoney(cartItem.line_price)"></span>
+        </span>
+      {% endif %}
+    </div>
+  </template>
+
+  {% comment %} Liquid - show when variant is not in cart {% endcomment %}
+  <div
+    class="flex w-full items-center justify-between {{ container_class }}"
+    x-show="!cart.items.some(cartItem => cartItem.variant_id === item.variants[0].id)"
+  >
+    <div class="group relative w-full">
+      <label
+        class="sr-only"
+        :for="`{{ section.id }}-${item.variants[0].id}-quantity`"
+      >
+        {{ 'labels.quantity' | t }}
+      </label>
+      <div
+        class="border__input--radius border__input color__border-input hover:border__input--hover focus-within:border__input--focus relative flex overflow-hidden {{ input_class }}"
+      >
+        <input
+          :id="`{{ section.id }}-${item.variants[0].id}-quantity`"
+          class="            !rounded-none !border-0 text-center"
+          type="number"
+          placeholder="0"
+          min="1"
+          x-model="quantity"
+          @change.debounce="
+            button_loading = true;
+            addCartItem(
+              item.variants[0].id,
+              0,
+              quantity,
+              {{ open_cart }},
+              false
+            );
+            setTimeout(function(){ button_loading = false}, 2000);
+          "
+        >
+        <div
+          class="invisible absolute left-0 top-0 h-0.5 w-full overflow-hidden"
+          :class="{ '!visible !z-10' : button_loading && cart_loading }"
+        >
+          <div class="color__bg-shade-2">
+            <div
+              class="color__bg-text h-0.5 w-0"
+              :class="{ 'animate-widthexpand': button_loading && cart_loading }"
+            ></div>
+          </div>
+        </div>
+        <div class="color__bg-input color__input absolute left-0 flex h-full flex-col justify-center gap-0">
+          <button
+            class="
+                                                                      btn btn--smaller btn--plain color__outline-input outline--width !h-full shrink-0 !rounded-none !px-2
+            "
+            title="{{ 'actions.decrease_item_quantity' | t }}"
+            type="button"
+            tabindex="-1"
+            @click.prevent="
+              button_loading = true;
+              quantity = quantity - 1;
+              if (quantity >= 1){
+                addCartItem(
+                  item.variants[0].id,
+                  0,
+                  quantity,
+                  {{ open_cart }},
+                  false
+                );
+              }
+              setTimeout(function(){ button_loading = false}, 2000);
+            "
+          >
+            {% render 'component__icon', icon: 'minus', size: '14', class: '' %}
+          </button>
+        </div>
+        <div class="color__bg-input color__input absolute right-0 flex h-full flex-col justify-center gap-0">
+          <button
+            class="btn btn--smaller btn--plain color__outline-input outline--width !h-full shrink-0 !rounded-none !px-2"
+            title="{{ 'actions.increase_item_quantity' | t }}"
+            type="button"
+            tabindex="-1"
+            @click.prevent="
+              button_loading = true;
+              quantity = quantity + 1;
+              addCartItem(
+                item.variants[0].id,
+                0,
+                quantity,
+                {{ open_cart}},
+                false
+              );
+              setTimeout(function(){ button_loading = false}, 2000);
+            "
+          >
+            {% render 'component__icon', icon: 'plus', size: '14', class: '' %}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

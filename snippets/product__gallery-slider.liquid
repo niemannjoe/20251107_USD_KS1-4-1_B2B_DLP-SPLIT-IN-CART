@@ -1,0 +1,330 @@
+<!-- snippets/product__gallery-slider.liquid -->
+{% comment %}
+  Block to display product photos in a slider.
+
+  Accepts:
+  - is_featured: {boolean} Assigns product object from section settings. Set this to true if snippet is used within a section rather than product template.
+  - is_overlay: {boolean} Set to true to adjust width when using the slider in quick-add overlays.
+
+  Globals:
+  - layout_gap_size: {integer} Sets the gap size in the grid layout.
+  - enable_animations: {boolean} Set to true to enable animations.
+
+  Usage:
+    {% render 'product__gallery-slider',
+      is_overlay: true,
+      is_featured: true
+    %}
+
+  Pro tips:
+  - When a product only has one photo the image will not be shown in a grid.
+{% endcomment %}
+{% liquid
+  assign has_3d = product.media | where: 'media_type', 'model' | first
+
+  if is_featured
+    assign product = section.settings.product
+    if request.design_mode and product == null
+      for product in collections.all.products limit: 1
+        assign product = product
+      endfor
+    endif
+  endif
+
+  if section.settings.media_object_sizing == 'cover'
+    capture crop_class
+      echo 'object-cover'
+    endcapture
+  else
+    capture crop_class
+      echo 'object-contain'
+    endcapture
+  endif
+
+  if section.settings.enable_ratio
+    capture ratio_class
+      echo section.settings.media_ratio
+    endcapture
+  endif
+
+  if is_overlay
+    capture ratio_class
+      echo 'aspect-[1/1]'
+    endcapture
+    capture crop_class
+      echo 'object-cover'
+    endcapture
+  endif
+%}
+
+{% comment %} Slider {% endcomment %}
+<div class="group relative {% comment %}w-full{% endcomment %} quick-add__slider--wrapper">
+  <div class="relative flex w-full">
+    {% comment %} Slides {% endcomment %}
+
+    {%- assign extra_slides = 0 -%}
+    {%- if product.tags contains 'LogoUpload' -%}
+      {%- assign first_variant = product.variants.first -%}
+      {%- assign first_variant_image = first_variant.metafields.custom.custom_variant_image | image_url -%}
+      {%- if first_variant_image != blank -%}
+        {%- assign extra_slides = 1 -%}
+      {%- endif -%}
+    {%- endif -%}
+    {%- assign total_slides = product.media.size | plus: extra_slides -%}
+
+    <div
+      class="quick-add-slider hidescrollbar js-slider inline-flex w-full overflow-x-auto overflow-y-hidden scroll-smooth whitespace-nowrap text-center md:snap-x md:snap-mandatory"
+      style="
+        gap: {{ settings.gap_size }}px;
+        padding: {{ settings.border_element_width }}px;
+        scroll-padding: {{ settings.border_element_width }}px;
+      "
+      x-ref="slider"
+      data-total-slides="{{ total_slides }}"
+    >
+
+      {% capture media_group %}{% endcapture %}
+      {% for media in product.media %}
+        {% for variant in product.variants %}
+          {% if media.src == variant.featured_image.src %}
+            {% capture media_group %}
+              {{ variant.featured_image.id }}
+            {% endcapture %}
+          {% endif %}
+        {% endfor %}
+
+        <div
+          class="
+            quick-add-modal__slide border--radius group/slide relative flex flex-none flex-col items-center overflow-hidden md:snap-start
+            js-{{ media.id }}
+            {{ section.settings.media_color_scheme }}
+            {{ section.settings.media_border }}
+            {% if is_overlay %}
+              w-2/5
+            {% else %}
+              {% if total_slides > 1 %}
+                w-[{{ section.settings.media_slider_size_mobile }}%]  md:w-[{{ section.settings.media_slider_size_desktop }}%]
+              {% else %}
+                w-full
+              {% endif %}
+            {% endif %}
+          "
+          x-bind:data-slide="{{ forloop.index0 }}"
+          x-intersect:enter.half="gallery_index = {{ forloop.index0 }};"
+          {% if section.settings.enable_variant_images and media.media_type == 'image' %}
+            x-show="current_variant_featured_image_id == {{ media_group }}"
+          {% endif %}
+        >
+
+          {% case media.media_type %}
+            {% when 'image' %}
+              {% render 'gallery__image',
+                media: media,
+                ratio_class: ratio_class,
+                crop_class: crop_class,
+                enable_zoom: section.settings.enable_zoom,
+                enable_alt: section.settings.enable_alt,
+                index: forloop.index0
+              %}
+
+            {% when 'video' %}
+              {% render 'gallery__video', media: media, ratio_class: ratio_class, crop_class: crop_class %}
+
+            {% when 'external_video' %}
+              {% render 'gallery__external_video', media: media, ratio_class: ratio_class, crop_class: crop_class %}
+
+            {% when 'model' %}
+              {% capture model_viewer_id %}
+                {{ media.id }}-grid
+              {% endcapture %}
+              {% render 'gallery__model', media: media, ratio_class: ratio_class, model_viewer_id: model_viewer_id %}
+          {% endcase %}
+
+        </div>
+      {% endfor %}
+
+      {%- assign start_index = product.media.size -%}
+
+      {%- assign lp_x   = 330 -%}
+      {%- assign lp_y   = 150 -%}
+      {%- assign lp_w   = 50  -%}
+      {%- assign lp_h   = 50  -%}
+      {%- assign lp_rot = 0   -%}
+      {%- assign lp_img = 'preview-1' -%}
+
+      {%- if product.metafields.custom.logo_positions and product.metafields.custom.logo_positions -%}
+        {%- for lp in product.metafields.custom.logo_positions.value -%}
+          {%- if forloop.first -%}
+            {%- assign p    = lp   | split: ':' -%}
+            {%- assign vals = p.last | strip | split: ',' -%}
+            {%- assign lp_x   = vals[0] | strip -%}
+            {%- assign lp_y   = vals[1] | strip -%}
+            {%- assign lp_w   = vals[2] | strip -%}
+            {%- assign lp_h   = vals[3] | strip -%}
+            {%- assign lp_img = vals[4] | strip -%}
+            {%- assign lp_rot = vals[5] | default: 0 | strip -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endif -%}
+
+      {%- assign current_variant = product.selected_or_first_available_variant -%}
+      {%- assign variant_image   = current_variant.metafields.custom.custom_variant_image | image_url -%}
+
+      {%- capture variant_preview_map -%}{
+        {%- for v in product.variants -%}
+          {%- assign url = blank -%}
+          {%- assign mf = v.metafields.custom.custom_variant_image -%}
+
+          {%- if mf != blank -%}
+            {%- if mf.type == 'file_reference' -%}
+              {%- assign url = mf | file_url -%}
+            {%- elsif mf.type == 'image' -%}
+              {%- assign url = mf | image_url -%}
+            {%- endif -%}
+          {%- endif -%}
+
+          {%- if url == blank and v.featured_image -%}
+            {%- assign url = v.featured_image | image_url -%}
+          {%- endif -%}
+
+          "{{ v.id }}": {%- if url != blank -%}{{ url | json }}{%- else -%}null{%- endif -%}{% unless forloop.last %},{% endunless %}
+        {%- endfor -%}
+      }{%- endcapture -%}
+
+      <script type="application/json" id="variant-preview-map">
+        {{ variant_preview_map | strip_newlines }}
+      </script>
+
+      {% if product.tags contains 'LogoUpload' and variant_image != blank %}
+        {%- assign start_index = product.media.size -%}
+        <div
+          class="
+            border--radius group/slide relative flex flex-none flex-col items-center overflow-hidden md:snap-start
+            {{ section.settings.media_color_scheme }}
+            {{ section.settings.media_border }}
+            {% if is_overlay %} w-2/5 {% else %} w-[{{ section.settings.media_slider_size_mobile }}%] md:w-[{{ section.settings.media_slider_size_desktop }}%] {% endif %}
+          "
+          x-bind:data-slide="{{ start_index }}"
+          x-intersect:enter.half="gallery_index = {{ start_index }};"
+        >
+          <div
+            class="product-gallery__carousel-item w-full overflow-hidden"
+            data-media-id="logo-preview_{{ current_variant.id }}"
+            data-media-option="{{ current_variant.title }}"
+          >
+            {%- capture data_logo_positions -%}{%- endcapture -%}
+            {%- if product.metafields.custom.logo_positions and product.metafields.custom.logo_positions.value -%}
+              {%- for lp in product.metafields.custom.logo_positions.value -%}
+                {%- assign p    = lp | split: ':' -%}
+                {%- assign name = p.first | strip -%}
+                {%- assign vals = p.last  | strip | split: ',' -%}
+                {%- capture sep -%}{% unless forloop.first %},{% endunless %}{%- endcapture -%}
+                {%- capture data_logo_positions -%}
+                  {{- data_logo_positions -}}{{- sep -}}
+                  "{{ name | replace: '"','\"' }}":[
+                    {{ vals[0] | strip | default: 0 }},
+                    {{ vals[1] | strip | default: 0 }},
+                    {{ vals[2] | strip | default: 0 }},
+                    {{ vals[3] | strip | default: 0 }},
+                    "{{ vals[4] | strip | replace: '"','\"' }}",
+                    {{ vals[5] | strip | default: 0 }}{% if vals.size > 6 %},"{{ vals[6] | strip }}"{% endif %}
+                  ]
+                {%- endcapture -%}
+              {%- endfor -%}
+            {%- endif -%}
+
+            <img
+              class="img-preview_canvas lazyload image--fade-in product-gallery__image"
+              width="600" height="600"
+              src="{{ variant_image }}"
+              data-media-id="logo-preview_{{ current_variant.id }}"
+              data-media-option="{{ current_variant.title }}"
+              data-zoom="{{ variant_image }}"
+              data-original="{{ variant_image }}"
+              alt="{{ current_variant.title }}" loading="lazy" style="max-width: 100%;"
+              data-logo-x="{{ lp_x }}" data-logo-y="{{ lp_y }}" data-logo-w="{{ lp_w }}" data-logo-h="{{ lp_h }}"
+              data-logo-rot="{{ lp_rot }}" data-logo-img="{{ lp_img }}"
+              data-logo-positions='{ {{ data_logo_positions }} }'
+            />
+            <canvas
+              class="logo-preview_canvas"
+              data-media-id="logo-preview_{{ current_variant.id }}"
+              data-media-option="{{ current_variant.title }}"
+              width="600" height="600" style="max-width: 100%; display: none;"
+            ></canvas>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    {% comment %} Indicators {% endcomment %}
+    {% if total_slides > 1 %}
+      <div class="animation-300 absolute bottom-2 left-0 right-0 z-10 flex w-full flex-wrap items-center justify-center overflow-hidden text-center group-hover:opacity-100 md:opacity-0">
+        <div class="color__bg-shade-3 relative flex w-auto items-center justify-center gap-2 rounded-full p-1">
+          {% capture media_group %}{% endcapture %}
+          <button
+            class="color__light leading-none"
+            style="cursor: w-resize;"
+            title="{{ 'actions.previous' | t }}"
+            type="button"
+            @click="galleryScrollBack();"
+          >
+            {% render 'component__icon', icon: 'chevron-small-left', size: '20', class: '' %}
+          </button>
+
+          {% if total_slides > 1 %}
+            <span class="type--smaller color__light">
+              <span x-text="gallery_index+1">1</span>/<span>{{ total_slides }}</span>
+            </span>
+          {% else %}
+            {% for media in product.media %}
+              {% for variant in product.variants %}
+                {% if media.src == variant.featured_image %}
+                  {% capture media_group %}
+                    {{ variant.featured_image.id }}
+                  {% endcapture %}
+                {% endif %}
+              {% endfor %}
+
+              <button
+                class="animation-300--all focus-visible:border--focus--inset h-2 w-2 rounded-full bg-white opacity-75"
+                :class="{ '!opacity-100 !w-6': gallery_index === {{ forloop.index0 }} }"
+                type="button"
+                aria-label="gallery_grid_button_{{ forloop.index0 }}"
+                @click="galleryScrollToIndex({{ forloop.index0 }});"
+                {% if media.media_type == 'image' and section.settings.enable_variant_images %}
+                  x-show="current_variant_featured_image_id == {{ media_group }}"
+                {% endif %}
+              ></button>
+            {% endfor %}
+
+            {%- if extra_slides > 0 -%}
+              <button
+                class="animation-300--all focus-visible:border--focus--inset h-2 w-2 rounded-full bg-white opacity-75"
+                :class="{ '!opacity-100 !w-6': gallery_index === {{ product.media.size }} }"
+                type="button"
+                aria-label="gallery_grid_button_{{ product.media.size }}"
+                @click="galleryScrollToIndex({{ product.media.size }});"
+              ></button>
+            {%- endif -%}
+          {% endif %}
+
+          <button
+            class="color__light leading-none"
+            style="cursor: e-resize;"
+            title="{{ 'actions.next' | t }}"
+            type="button"
+            @click="galleryScrollNext();"
+          >
+            {% render 'component__icon', icon: 'chevron-small-right', size: '20', class: '' %}
+          </button>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% comment %} Load 3d viewer {% endcomment %}
+{% if has_3d %}
+  {% render 'script__model' %}
+{% endif %}

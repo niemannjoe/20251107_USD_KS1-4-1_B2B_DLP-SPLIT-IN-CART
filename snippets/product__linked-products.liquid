@@ -1,0 +1,51 @@
+<!-- snippets/product__linked-products.liquid -->
+{% comment %}
+  Block to display a swatch of linked products.
+
+  Accepts:
+  - blocksettings: {object} Liquid object of block settings.
+
+  Usage:
+    {% render 'product__linked-products',
+      block: block
+     %}
+
+  Pro tips:
+    -
+{% endcomment %}
+
+{% if product.metafields.custom.linked_collection.value.products.size > 0 %}
+  <div
+    id="product-linked-products"
+    class="
+      {{ block.settings.color_scheme }}
+      {{ block.settings.color_border }}
+      {{ block.settings.style_border }}
+    "
+    style="
+      padding-top:{{ block.settings.spacing_top }}px;
+      padding-bottom:{{ block.settings.spacing_bottom }}px;
+    "
+  >
+    {% if block.settings.linked_products_title != empty %}
+      <p class="type--smaller mb-0 flex opacity-75">{{ block.settings.linked_products_title }}</p>
+    {% endif %}
+    <div class="showscrollbar inline-flex w-full gap-2 overflow-x-auto overflow-y-hidden scroll-smooth whitespace-nowrap py-2 md:snap-x">
+      {% for linked_product in product.metafields.custom.linked_collection.value.products %}
+        <button
+          class="btn btn--plain btn--small focus:border--focus !h-16 !min-h-[64px] !w-16 !min-w-[64px] bg-contain bg-center"
+          :class="
+            {
+              'btn--plain border--focus' : '{{ product.handle }}' == '{{ linked_product.handle }}',
+              'btn--plain' : '{{ product.handle }}' != '{{ linked_product.handle }}',
+            }
+          "
+          style="background-image: url('{{ linked_product.featured_image | image_url: width: 128 }}');"
+          aria-label="{{ value }}"
+          type="button"
+          @click="window.location.href = '{{ linked_product.url }}'"
+        ></button>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}

@@ -1,0 +1,257 @@
+<div class="logo-preview_modal close">
+  <div class="logo-preview_inner-modal">
+    <h3>{{ product.title }}</h3>
+    {%- assign selected_variant = product.selected_or_first_available_variant -%}
+    {%- assign step_quantity = product.metafields.custom.step_quantity | default: product.metafields.custom.step_quantity | default: 1 -%}
+       {%- assign variantSku = selected_variant.sku | split: "-" | first -%}
+       
+    <span class="product-meta__sku" {% if variantSku == blank %}style="display: none"{% endif %}>Item#
+      <span class="product-meta__sku-number">{{ variantSku }}</span>
+    </span>
+    <section class="logo-preview-wrapper">
+      <article class="logo-preview_carousel-wrapper">
+        <div class="logo-preview_carousel"></div>
+      </article>
+      <article class="logo-preview_information">
+        <div>
+          <h4>Artwork</h4>
+          <p>Dealership Logo:
+            <a href="#" target="_blank" id="logo-link">Click Here</a>
+          </p>
+          <p>Max Size: 3.5" x 1.75"</p>
+          <label for="notes">Customization Notes:</label>
+          <textarea id="notes" name="notes"></textarea>
+        </div>
+        <div class="order-details">
+          <h4>Order Details</h4>
+            <ul class="modal_line-items"></ul>
+        </div>
+      </article>
+    </section>
+    <form class="actions" id="modal-preview-form">
+      <label>
+        <input type="checkbox" required name="right-to-use" id="right-to-use-checkbox">
+        <span>I hereby certify to have the lawful right to use the logo submitted on this item.</span>
+      </label>
+      <label>
+        <input type="checkbox" required name="preview-approved" id="preview-approved-checkbox">
+        <span>I have reviewed and approved the design above.<br>
+          <small>*In case colors and dimensions need to be adjusted to better show on the product, we will email you a new mock-up for final approval.</small>
+        </span>
+      </label>
+
+      <button class="modal-submit-button btn btn--primary js-modal-submit" type="button" onclick="addLogoItemToCartFromModal()">
+        <span class="button-text modal-button">Add to Cart</span>
+      </button>
+
+    </form>
+  </div>
+</div>
+
+<style>
+  .logo-preview_modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    background: rgba(200, 200, 200, 0.3);
+  }
+
+  .logo-preview_modal .flickity-prev-next-button.previous {
+    left: 0!important;
+  }
+
+  .logo-preview_modal .flickity-button flickity-prev-next-button next {
+    right: 0!important;
+  }
+
+  .logo-preview_modal .flickity-prev-next-button.previous svg {
+    left: 9px;
+  }
+
+  .logo-preview_modal .flickity-prev-next-button.next svg {
+    left: 7px;
+  }
+
+  .logo-preview_modal .flickity-prev-next-button svg {
+    fill: #b3b3b3;
+  }
+
+  .logo-preview_modal .flickity-prev-next-button {
+    transform: translateY(0);
+    /*transform: scale(.7);*/
+  }
+
+  .logo-preview_modal .flickity-prev-next-button,
+  .logo-preview_modal .flickity-prev-next-button:hover {
+    width: 44px;
+    height: 44px;
+    margin: 2px;
+  }
+
+  .logo-preview_modal button.flickity-button.flickity-prev-next-button.next {
+    right: 0!important;
+  }
+
+  .logo-preview_modal.close {
+    display: none;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: fit-content;
+    overflow: scroll;
+    max-width: 700px;
+    transform: translate(-50%, -50%);
+    padding: 1.5rem;
+    background: #fff;
+    border-radius: 4px;
+    color: rgb(120, 120, 120);
+    font-family: Ford Antenna Light, sans-serif !important;
+    font-size: 0.9rem;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal h3 {
+    margin: 0.25rem 0;
+    color: rgb(99, 101, 155);
+    font-weight: 400;
+    font-size: 1.4rem;
+    width: 100%;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal h4 {
+    margin: 0.25rem 0 0.75rem;
+    color: rgb(99, 101, 155);
+    font-weight: 400;
+    font-size: 1.15rem;
+  }
+
+  .logo-preview_inner-modal label {display:block!important;}
+  .logo-preview_inner-modal label small {font-size:11px;}
+  .logo-preview_inner-modal button {margin:18px 0 0 0;}
+
+  .logo-preview_modal .logo-preview_inner-modal p {
+    margin: 0.25rem 0;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal textarea {
+    display: block;
+    resize: none;
+    width: 100%;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal a {
+    text-decoration: underline;
+    color: rgb(120, 134, 255);
+    cursor: pointer;
+  }
+  .logo-preview_modal .logo-preview_inner-modal .logo-preview-wrapper {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    margin: 1.5rem 0 1rem;
+    column-gap: 10px;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal .logo-preview_information > div {
+    border-top: 1px solid #d6d6d6;
+    margin-bottom: 1.5rem;
+  }
+
+  input.modal-required {
+    display: none;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal .modal_line-items li {
+    display: flex;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal .modal_line-items li > p {
+    margin: 0;
+    flex-grow: 1;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal .actions > * {
+    display: block;
+    width: 100%;
+    max-width: 80vw;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal .actions > button {
+    background: rgb(66, 66, 66);
+    color: #fff;
+    border-radius: 1000px;
+    padding: 0.25rem 2rem;
+    width: 50%;
+  }
+
+  .logo-preview_modal #modal-preview-form button[type="submit"] {
+    margin: 20px 0;
+  }
+
+  .logo-preview_modal #modal-preview-form label,
+  .logo-preview_modal #modal-preview-form input {
+    cursor: pointer;
+  }
+
+  .logo-preview_modal #modal-preview-form input {
+    -moz-appearance: checkbox;
+    min-width: 10px;
+    min-height: 10px;
+  }
+
+  .logo-preview_modal button[type="submit"] {
+    position: relative;
+  }
+
+  .button-text {
+    transition: all 0.2s;
+  }
+
+  .button-loading .button-text {
+    visibility: hidden;
+    opacity: 0;
+  }
+
+  .button-loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: auto;
+    border: 4px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: button-loading-spinner 1s ease infinite;
+  }
+
+  .logo-preview_modal .flickity-prev-next-button.next {
+    right: 10px !important;
+  }
+
+  @keyframes button-loading-spinner {
+    from {
+      transform: rotate(0turn);
+    }
+
+    to {
+      transform: rotate(1turn);
+    }
+  }
+
+
+  @media (max-width: 768px) {
+    .logo-preview_modal .logo-preview_inner-modal .logo-preview-wrapper {
+      grid-template-columns: initial;
+    }
+  }
+</style>
+

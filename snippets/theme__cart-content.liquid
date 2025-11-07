@@ -1,0 +1,682 @@
+<!-- snippets/collection__subcollections.liquid -->
+{% comment %}
+  Outputs the contents of the cart drawer.
+
+  Globals:
+  - cart_drawer_style: {string} Sets the style of the cart drawer.
+  - close_button_color: {string} Sets the color of the close button.
+  - close_button_content: {string} Sets the content of the close button.
+  - gap_size: {integer} Sets the gap size in the layout.
+  - enable_audio: {boolean} Indicates if audio is enabled.
+  - type_separator: {string} Sets the type of separator between text.
+
+  Accepts:
+  - cart_type: {string} This snippet is used in multiple places, we need to pass a unique ID so internal IDs don't conflict.
+
+  Usage:
+    {% render 'theme__cart-content', cart_type: 'mobile1' %}
+{% endcomment %}
+
+{% comment %}
+  This block creates the step quantity data map for the cart drawer.
+{% endcomment %}
+{%- capture step_quantities_map -%}
+  {%- if cart.items.size > 0 -%}
+    {
+      {%- for item in cart.items -%}
+        "{{ item.key }}": {{ item.product.metafields.custom.step_quantity.value | default: 1 }}{%- unless forloop.last -%},{%- endunless -%}
+      {%- endfor -%}
+    }
+  {%- else -%}
+    {}
+  {%- endif -%}
+{%- endcapture -%}
+
+{% comment %}<script>
+  // Attach the map to the global window object.
+  window.stepQuantities = {{ step_quantities_map }};
+</script> {% endcomment %}
+
+<div
+  class="
+    sticky top-0 flex h-full max-h-[100svh] flex-col lg:min-h-[100svh]
+    {{ section.settings.main_color_scheme_first }}
+    {% if settings.cart_drawer_style == 'fixed' %}
+      lg:max-w-[400px] lg:min-w-[400px]
+    {% endif %}
+    {% unless section.settings.main_color_border == '!color__border-transparent' %}
+      md:border--l-width
+    {% endunless %}
+  "
+>
+  {% comment %} Announcement bar {% endcomment %}
+  {% for block in section.blocks %}
+    {% if block.type == 'announcement' %}
+      <section class="{{ block.settings.color_scheme }}  /">
+        <div class="p-1">
+          <div
+            class="
+              flex w-full
+              {% if block.settings.layout_x_alignment == "center" %}
+                justify-center
+              {% elsif block.settings.layout_x_alignment == "right" %}
+                justify-end
+              {% endif %}
+            "
+          >
+            <span class="rte type--smaller">{{ block.settings.content }}</span>
+          </div>
+        </div>
+      </section>
+    {% endif %}
+  {% endfor %}
+
+  {% comment %} Top bar {% endcomment %}
+  <section
+    class="
+      border--b-width sticky top-0 z-20 hidden items-center justify-between p-4 md:flex
+      {{ section.settings.top_color_scheme }}
+      {{ section.settings.top_color_border }}
+    "
+  >
+    <span>
+      {{ 'labels.cart' | t }}
+      <span class="ml-1"> (<span x-html="cart.item_count"></span>) </span>
+    </span>
+    <button
+      class="
+        btn btn--small
+        {{ settings.close_button_color }} /
+      "
+      title="{{ 'actions.close' | t }}"
+      @click="closeCart()"
+    >
+      {% if settings.close_button_content contains 'icon' %}
+        {% render 'component__icon', icon: 'x', size: '20' %}
+      {% endif %}
+      {% if settings.close_button_content contains 'text' %}
+        <span
+          {% if settings.close_button_content contains 'icon' %}
+            class="ml-1"
+          {% endif %}
+        >
+          {{ 'actions.close' | t }}
+        </span>
+      {% endif %}
+    </button>
+  </section>
+
+  {% comment %} Prepare the step quantity data map directly before the component that uses it {% endcomment %}
+  {%- capture step_quantities_map -%}
+    {%- if cart.items.size > 0 -%}
+      {
+        {%- for item in cart.items -%}
+          "{{ item.key }}": {{ item.product.metafields.custom.step_quantity.value | default: 1 }}{%- unless forloop.last -%},{%- endunless -%}
+        {%- endfor -%}
+      }
+    {%- else -%}
+      {}
+    {%- endif -%}
+  {%- endcapture -%}
+
+  {% comment %} Cart {% endcomment %}
+  <section
+    class="relative flex h-[inherit] flex-grow flex-col overflow-y-auto overflow-x-hidden"
+    x-data="
+      {
+        properties_drop: false,
+        button_loading: false,
+      }
+    "
+  >
+    {% comment %} Progress bar {% endcomment %}
+    {% for block in section.blocks %}
+      {% if block.type == 'progress_bar' %}
+        <div
+          class="
+            border--b-width p-4
+            {{ section.settings.main_color_scheme_second }}
+            {{ section.settings.main_color_border }}
+          "
+        >
+          <p
+            class="type--small mb-2"
+            x-show="cart.progress_bar_remaining > 0"
+            x-cloak
+          >
+            {{ 'info.cart_bar_pre_text' | t }}
+            <span
+              x-html="Shopify.formatMoney(cart.progress_bar_remaining, false)"
+            >
+            </span>
+            {{ 'info.cart_bar_text' | t }}
+          </p>
+          <p
+            class="type--small mb-2"
+            x-show="cart.progress_bar_remaining <= 0"
+            x-cloak
+          >
+            {{ block.settings.success }}
+          </p>
+          <div class="color__bg-overlay-2 border--radius h-2 overflow-hidden">
+            <div
+              class="color__bg-primary animation-500--all h-2"
+              :style="{ width: cart.progress_bar_percent }"
+            ></div>
+          </div>
+        </div>
+        <script type="module">
+          window.__initialData = window.__initialData || {};
+          Object.assign(window.__initialData, {
+            progress_bar_threshold: {{ block.settings.threshold | times: 100 }},
+            progress_bar_calculation: {% if block.settings.calculation == 'total' %} 'total' {% else %} 'subtotal' {% endif %},
+          });
+        </script>
+      {% endif %}
+    {% endfor %}
+
+    {% comment %} Cart items {% endcomment %}
+    <template x-for="(group, groupIndex) in cart.groupedItems" :key="groupIndex">
+      {% render 'template__cart-item' %}
+    </template>
+
+    {% for block in section.blocks %}
+      {% if block.type == 'upsell_featured' %}
+        {% if block.settings.upsell_type == 'stacked' %}
+          {% comment %} Upsell stacks {% endcomment %}
+          <div
+            class="
+              border--b-width p-4
+              {{ section.settings.main_color_scheme_second }}
+              {{ section.settings.main_color_border }}
+            "
+          >
+            {% if collections[block.settings.cart_upsell_products].products.size > 0 %}
+              <div class="flex flex-col gap-4">
+                {% for product in collections[block.settings.cart_upsell_products].products limit: 5 %}
+                  {% unless product.tags contains settings.account_hide_product_tag %}
+                    <div x-show="!cart.items.some(item => item.product_id === {{ product.id }})">
+                      {% render 'component__product-stack', product: product %}
+                    </div>
+                  {% endunless %}
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        {% endif %}
+      {% endif %}
+    {% endfor %}
+
+    {% comment %} Checkbox upsell {% endcomment %}
+    {% for block in section.blocks %}
+      {% if block.type == 'upsell_checkbox' %}
+        {% unless block.settings.variant_id == blank %}
+          <div
+            class="
+              border--b-width w-full p-4
+              {{ section.settings.main_color_scheme_second }}
+              {{ section.settings.main_color_border }}
+            "
+            x-show="cart.items.length > 0"
+            x-cloak
+          >
+            <label class="flex items-center">
+              <input
+                id="cart_upgrade"
+                class=""
+                type="checkbox"
+                :checked="cart.items.find((item) => item.variant_id === {{ block.settings.variant_id }}) === undefined ? false : true"
+                @click="
+                  $refs.upgrade_input.checked ?
+                  addCartItem({{ block.settings.variant_id }}, 0, 1, false) :
+                  changeCartItemQuantity({{ block.settings.variant_id }}, 0, false, false)
+                "
+                x-ref="upgrade_input"
+              >
+              <p class="text--small ml-2">{{ block.settings.label }}</p>
+            </label>
+          </div>
+        {% endunless %}
+      {% endif %}
+    {% endfor %}
+
+    {% comment %} Cart notes {% endcomment %}
+    {% if section.settings.main_enable_cart_note %}
+      <div
+        class="
+          border--b-width w-full p-4
+          {{ section.settings.main_color_scheme_second }}
+          {{ section.settings.main_color_border }}
+        "
+        x-data="
+          {
+            reveal: cart.note != '',
+            currentNote: cart.note
+          }
+        "
+        x-show="cart.items.length > 0"
+        x-cloak
+      >
+        {% comment %}<label class="flex items-center">
+          <label
+            class="sr-only"
+            for="notes"
+          >
+            {{- 'actions.add_order_note' | t -}}
+          </label>
+          <input
+            id="notes"
+            class=""
+            type="checkbox"
+            :checked="reveal"
+            @click="reveal = ! reveal"
+          >
+          <p class="text--small ml-2">{{ 'actions.add_order_note' | t }}</p>
+        </label>
+        <textarea
+          class="mt-2 w-full"
+          rows="4"
+          name="note"
+          placeholder="{{ 'actions.note_placeholder' | t }}"
+          x-show="reveal"
+          x-model="currentNote"
+          @keyup.debounce="updateCartNote(currentNote)"
+          x-cloak
+        >
+        </textarea>
+      </div>{% endcomment %}
+
+      <div id="mini-clear-container" class="w-full px-4" style="padding-top: 35px;">
+      <form action="clear-checkbox" class="text--small mb-0 text--small">
+        <label class="sr-only" for="clear">Clear cart</label> <input type="checkbox" class="clear-checkbox mr-2 mb-1">Clear cart. Can't undo.
+        <div class="clear-button">
+            <a class="button" href="/cart/clear">Clear</a>
+        </div>
+      </form>
+    </div>
+
+    {% endif %}
+
+    {% comment %} Share {% endcomment %}
+    {% if section.settings.main_enable_cart_share %}
+      <div
+        class="
+          border--b-width w-full p-4
+          {{ section.settings.main_color_scheme_second }}
+          {{ section.settings.main_color_border }}
+        "
+        x-show="cart.items.length > 0"
+        x-cloak
+      >
+        <div class="flex flex-col gap-2">
+          <p class="type--small">{{ 'labels.share_your_cart' | t }}</p>
+          <div
+            class="flex w-full gap-4"
+            x-data="
+              {
+                copy: '{{ 'actions.copy_url' | t }}'
+              }
+            "
+          >
+            <label
+              class="sr-only"
+              for="copy-cart-{{ cart_type }}"
+            >
+              {{- 'actions.copy_url' | t }}
+            </label>
+            <input
+              id="copy-cart-{{ cart_type }}"
+              class="flex-grow"
+              type="text"
+              placeholder="cart/?="
+              autocorrect="off"
+              autocapitalize="off"
+              :value="generateUrl()"
+            >
+            <button
+              class="btn btn--secondary btn--smaller shrink-0 whitespace-nowrap"
+              type="submit"
+              @click="
+                copyToClipboard('copy-cart-{{ cart_type }}');
+                copy = '{{ 'actions.copied' | t }}';
+              "
+            >
+              <span
+                class="btn__content"
+                x-text="copy"
+              >
+                {{- 'actions.copy_url' | t -}}
+              </span>
+            </button>
+          </div>
+          <p class="type--smaller opacity-75">
+            {{ 'info.share_cart_description' | t }}
+          </p>
+        </div>
+      </div>
+    {% endif %}
+
+
+
+    {% comment %} Subtotal {% endcomment %}
+    <div
+      class="
+        border--b-width w-full p-4
+        {{ section.settings.main_color_scheme_second }}
+        {{ section.settings.main_color_border }}
+      "
+      {% if section.settings.show_cart_subtotals %}
+        x-show="cart.total_price > 0"
+        x-cloak
+      {% else %}
+        x-show="cart.total_discount > 0"
+        x-cloak
+      {% endif %}
+    >
+      <div class="mb-1 flex w-full items-center justify-between">
+        <span>{{ 'labels.subtotal' | t }}</span>
+        <span x-html="Shopify.formatMoney(cart.original_total_price, true)"></span>
+      </div>
+      <div
+        class="mb-1 flex w-full items-center justify-between"
+        x-show="cart.total_discount > 0"
+        x-cloak
+      >
+        <span>{{ 'labels.discount' | t }}</span>
+        <span x-html="'-' + Shopify.formatMoney(cart.total_discount, true)"></span>
+      </div>
+      <div class="flex w-full items-center justify-between">
+        <span class="flex items-center">
+          <strong>{{ 'labels.total' | t }}</strong>
+        </span>
+        <strong
+          class="w-full text-right"
+          x-html="Shopify.formatMoney(cart.total_price, true)"
+        >
+        </strong>
+      </div>
+    </div>
+
+    {% comment %} Taxes {% endcomment %}
+    {% if cart.taxes_included %}
+      <div
+        class="
+          border--b-width type--smaller color__bg-shade-1 w-full p-2 px-4
+          {{ section.settings.main_color_border }}
+        "
+      >
+        {{ 'info.tax_included' | t }}
+      </div>
+    {% endif %}
+
+    {% comment %} B2B {% endcomment %}
+    {% if customer.b2b? %}
+      <div class="p-4">
+        <div class="color__bg-shade-2 flex items-center gap-2 p-4">
+          <div class="color__bg-shade-2 flex h-10 w-10 items-center justify-center rounded-full">
+            {{ customer.current_company.name | truncate: 1, '' | upcase }}
+          </div>
+          <div>
+            {{ customer.current_company.name }}
+            <div class="type--small opacity-50">
+              {{ 'info.purchasing_for_location' | t: location: customer.current_location.name }}
+            </div>
+            <button
+              class="type--small"
+              @click="openAccount();"
+            >
+              {{ 'actions.change_location' | t }}
+            </button>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    {% comment %} Card blocks {% endcomment %}
+    {% liquid
+      assign has_content_block = false
+      for block in section.blocks
+        if block.type == 'content'
+          assign has_content_block = true
+        endif
+      endfor
+    %}
+    {% if has_content_block %}
+      <div
+        class="
+          mt-auto flex flex-col
+          {{ section.settings.bottom_color_scheme }}
+        "
+        x-show="cart.items.length > 0"
+      >
+        {% for block in section.blocks %}
+          {% if block.type == 'content' %}
+            <div
+              class="
+                p-4
+                {% unless forloop.first %}border--t-width{% endunless %}
+                {{ section.settings.main_color_border }}
+              "
+            >
+              {% render 'component__content-item',
+                heading: block.settings.heading,
+                content: block.settings.content,
+                button_label: block.settings.button_label,
+                url: block.settings.url,
+                image: block.settings.image,
+                image_background: block.settings.image_background,
+                video: block.settings.video,
+                enable_autoplay: block.settings.enable_autoplay,
+                enable_mute_toggle: block.settings.enable_mute_toggle,
+                enable_loop: block.settings.enable_loop,
+                enable_scroll_motion: 'false',
+                color_scheme: block.settings.color_scheme,
+                color_border: block.settings.color_border,
+                color_button: block.settings.color_button,
+                enable_gradient: block.settings.enable_gradient,
+                enable_padding: block.settings.enable_padding,
+                spacing_minimum_height: block.settings.spacing_minimum_height,
+                spacing_maximum_height: 600,
+                layout_y_alignment: block.settings.layout_y_alignment,
+                layout_x_alignment: block.settings.layout_x_alignment,
+                text_position: block.settings.text_position
+              %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+
+  {% comment %} Empty cart {% endcomment %}
+  {% for block in section.blocks %}
+    {% if block.type == 'empty_cart' %}
+      <aside
+        class="
+          mt-auto p-4
+          {{ section.settings.bottom_color_scheme }}
+        "
+        x-show="cart.items.length == 0"
+      >
+        {% render 'component__content-item',
+          heading: block.settings.heading,
+          content: block.settings.content,
+          button_label: block.settings.button_label,
+          url: block.settings.url,
+          image: block.settings.image,
+          image_background: block.settings.image_background,
+          video: block.settings.video,
+          enable_autoplay: block.settings.enable_autoplay,
+          enable_mute_toggle: block.settings.enable_mute_toggle,
+          enable_loop: block.settings.enable_loop,
+          enable_scroll_motion: 'false',
+          color_scheme: block.settings.color_scheme,
+          color_border: block.settings.color_border,
+          color_button: block.settings.color_button,
+          enable_gradient: block.settings.enable_gradient,
+          enable_padding: block.settings.enable_padding,
+          spacing_minimum_height: block.settings.spacing_minimum_height,
+          spacing_maximum_height: 600,
+          layout_y_alignment: block.settings.layout_y_alignment,
+          layout_x_alignment: block.settings.layout_x_alignment,
+          text_position: block.settings.text_position
+        %}
+      </aside>
+    {% endif %}
+  {% endfor %}
+
+  {% comment %} Sticky bar {% endcomment %}
+  <aside
+    class="
+      border--t-width sticky bottom-0 z-20 mt-auto md:max-w-xl
+      {{ section.settings.bottom_color_scheme }}
+      {{ section.settings.bottom_color_border }}
+    "
+    x-cloak
+  >
+    <div class="flex flex-wrap gap-4 py-4">
+      {% comment %} Upsell slider {% endcomment %}
+      {% for block in section.blocks %}
+        {% if block.type == 'upsell_featured' %}
+          {% if collections[block.settings.cart_upsell_products].products.size > 0 %}
+            <div
+              class="
+                overflow-hidden
+                {% if block.settings.upsell_type == 'stacked' %}hidden{% endif %}
+              "
+            >
+              {% capture slides %}
+                {% for block in section.blocks %}
+                  {% for product in collections[block.settings.cart_upsell_products].products limit: 5 %}
+                    <div 
+                      class="js-slider-item flex max-w-[300px] flex-none snap-center justify-start" 
+                      x-show="!cart.items.some(item => item.product_id === {{ product.id }})"
+                      x-bind:data-slide="{{ forloop.index0 }}">
+                      {% render 'component__product-stack', 
+                        product: product,
+                        id: cart_type
+                      %}
+                    </div>
+                  {% endfor %}
+                {% endfor %}
+              {% endcapture %}
+              {% if slides %}
+                {% render 'component__slider',
+                  container_class: '',
+                  slider_size: section.blocks.size,
+                  parent_class: '',
+                  slides: slides,
+                  enable_arrows_over: false,
+                  enable_scrollbar: true
+                %}
+              {% endif %}
+            </div>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+
+      {% comment %} Checkout {% endcomment %}
+      {% if settings.cart_minimum_amount > 0 %}
+        <div
+          class="px-4"
+          x-show="cart.total_price < {{ settings.cart_minimum_amount }}"
+          x-cloak
+        >
+          <p class="color__bg-shade-1 border--radius p-4">
+            {{ 'info.your_total_is' | t }}
+            <span x-html="Shopify.formatMoney(cart.total_price, true)"></span>.
+            {{ 'info.the_minimum_order_amount_is' | t }}
+            <span x-html="Shopify.formatMoney({{ settings.cart_minimum_amount }}, true)"></span>.
+          </p>
+        </div>
+      {% endif %}
+      <form
+        class="w-full px-4"
+        action="{{ routes.cart_url }}"
+        method="post"
+        x-data="
+          {
+            checkout_button_loading:false
+          }
+        "
+        {% if settings.cart_minimum_amount > 0 %}
+          x-show="cart.total_price >= {{ settings.cart_minimum_amount }} && cart.items.length > 0"
+        {% endif %}
+        x-show="cart.items.length > 0"
+        @submit.prevent="
+          checkout_button_loading = true;
+          {% if settings.enable_audio %}
+            playAudioIfEnabled(click_audio);
+          {% endif %}
+          setTimeout(function(){
+            checkout_button_loading = false
+          }, 5000);
+          window.location.href = '/checkout';
+        "
+      >
+        <div class="mb-0 flex flex-col gap-2">
+          {% if section.settings.show_continue_shopping_button %}
+            <a
+              class="btn btn--plain btn--load block !w-full"
+              href="{{ routes.cart_url }}"
+              @click.prevent="closeCart()"
+            >
+              {{ 'actions.continue_shopping' | t }}
+            </a>
+          {% endif %}
+
+          {% if section.settings.cart_button_behavior == 'checkout' %}
+            <button
+              class="
+                btn btn--load !w-full
+                {{ section.settings.bottom_color_button }}
+              "
+              type="submit"
+              name="checkout"
+              :class="{ 'btn--loading' : checkout_button_loading }"
+              :disabled="checkout_button_loading"
+            >
+              <div class="btn__spinner">
+                {% render 'component__icon', icon: 'spinner', size: '24', class: '' %}
+              </div>
+              <div class="btn__content">
+                {{ 'actions.checkout' | t }}
+                {% if section.settings.show_button_prices %}
+                  {% if settings.type_separator == 'dot' %}·{% else %}|{% endif %}
+                  <span
+                    class="ml-1"
+                    x-html="Shopify.formatMoney(cart.total_price, true)"
+                  ></span>
+                {% endif %}
+              </div>
+            </button>
+          {% else %}
+            <a
+              class="
+                btn btn--load block !w-full
+                {{ section.settings.bottom_color_button }}
+              "
+              href="{{ routes.cart_url }}"
+              :class="{ 'btn--loading' : checkout_button_loading }"
+            >
+              {{ 'labels.cart' | t }}
+              {% if section.settings.show_button_prices %}
+                {% if settings.type_separator == 'dot' %}·{% else %}|{% endif %}
+                <span
+                  class="ml-1"
+                  x-html="Shopify.formatMoney(cart.total_price, true)"
+                ></span>
+              {% endif %}
+            </a>
+          {% endif %}
+
+          {% unless section.settings.bottom_disclaimer == blank %}
+            <div class="type--smaller space-y-4">
+              {{ section.settings.bottom_disclaimer }}
+            </div>
+          {% endunless %}
+        </div>
+      </form>
+    </div>
+  </aside>
+</div>

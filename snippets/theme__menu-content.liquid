@@ -1,0 +1,497 @@
+<!-- snippets/theme__menu-content.liquid -->
+{% comment %}
+  This creates the content for the menu.
+
+  Accepts:
+  - menu_type: {string} This is used to create a unique ID for the form.
+
+  Usage:
+    {% render 'theme__menu-content',
+     menu_type: 'drawer'
+    %}
+{% endcomment %}
+
+{% assign redirect_url = request.path | append: '?account' %}
+{% if settings.account_redirect_url %}
+  {% assign redirect_url = settings.account_redirect_url | append: '' %}
+{% endif %}
+
+{% capture logo_default_size %}
+  height: {{ section.settings.logo_desktop_height }}px;
+  width: {{ section.settings.logo_desktop_height | times: section.settings.logo_default.aspect_ratio }}px;
+{% endcapture %}
+
+{% capture logo_alt_text %}
+  {{ section.settings.logo_alt_text | default: shop.name }}
+{% endcapture %}
+
+<div
+  class="
+    sticky top-0 flex h-full max-h-[100svh] flex-col lg:min-h-[100svh] lg:min-w-[300px] lg:max-w-[300px]
+    {{ section.settings.main_color_scheme }}
+    {% unless section.settings.main_color_border == '!color__border-transparent' %}
+      md:border--r-width
+    {% endunless %}
+  "
+>
+  {% comment %} Announcement bar {% endcomment %}
+  {% for block in section.blocks %}
+    {% if block.type == 'announcement' %}
+      <section
+        class="          {{ block.settings.color_scheme }}"
+      >
+        <div class="p-1">
+          <div
+            class="
+              flex w-full
+              {% if block.settings.layout_x_alignment == "center" %}
+                justify-center
+              {% elsif block.settings.layout_x_alignment == "right" %}
+                justify-end
+              {% endif %}
+            "
+          >
+            <span class="type--smaller">{{ block.settings.content }}</span>
+          </div>
+        </div>
+      </section>
+    {% endif %}
+  {% endfor %}
+
+  {% comment %} Logo and collapse button {% endcomment %}
+  <section
+    class="
+      border--b-width sticky top-0 z-20 hidden items-center justify-between p-4 md:flex
+      {{ section.settings.top_color_scheme }}
+      {{ section.settings.top_color_border }}
+    "
+  >
+    {% comment %} Default logo {% endcomment %}
+    {% if section.settings.logo_default and section.settings.enable_logo %}
+      <a
+        class="animation-500 relative inline-block items-center"
+        style="{{ logo_default_size }}"
+        href="{{ routes.root_url }}"
+        title="{{ shop.name }}"
+      >
+        {{
+          section.settings.logo_default
+          | image_url: width: 400
+          | image_tag: class: 'w-full h-full !bg-transparent object-contain', alt: logo_alt_text
+        }}
+      </a>
+    {% endif %}
+
+    {% comment %} Text fallback {% endcomment %}
+    {% if section.settings.logo_default == blank or section.settings.enable_logo == false %}
+      <a
+        class="
+          relative inline-block items-center whitespace-nowrap no-underline
+          {% unless section.settings.enable_logo %}
+            opacity-0 invisible
+          {% endunless %}
+        "
+        href="{{ routes.root_url }}"
+        title="{{ shop.name }}"
+      >
+        {{ shop.name }}
+      </a>
+    {% endif %}
+
+    {% comment %} Collapse button {% endcomment %}
+    <button
+      class="
+        btn--small
+        {{ settings.close_button_color }}
+      "
+      title="{{ 'actions.close' | t }}"
+      @click="closeMenu()"
+    >
+      {% if settings.close_button_content contains 'icon' %}
+        {% render 'component__icon', icon: 'chevron-left', size: '20' %}
+      {% endif %}
+      {% if settings.close_button_content contains 'text' %}
+        <span
+          {% if settings.close_button_content contains 'icon' %}
+            class="ml-1"
+          {% endif %}
+        >
+          {{ 'actions.close' | t }}
+        </span>
+      {% endif %}
+    </button>
+  </section>
+
+  {% comment %} Navigation and blocks {% endcomment %}
+  <nav
+    class="
+      relative top-0 h-[inherit] max-h-[90svh] overflow-y-auto overflow-x-hidden pb-14 md:sticky
+      {{ section.settings.main_color_scheme }}
+    "
+  >
+    <div>
+      {% comment %} Blocks {% endcomment %}
+      {% for block in section.blocks %}
+        {% case block.type %}
+          {% when 'menu' %}
+            {% for link in block.settings.menu.links %}
+              <div
+                class="
+                  border--t-width w-full
+                  {{ section.settings.main_color_border }}
+                "
+              >
+                {% liquid
+                  assign is_nested = false
+                  if link.links != blank
+                    assign is_nested = true
+                  endif
+                %}
+
+                {% if is_nested %}
+                  {% comment %} Nested menu {% endcomment %}
+                  {% capture accordion_button_class %}
+                    hover:color__bg-shade-1 px-4 !py-2 type--small
+                    {% if link.child_active %}!underline {% endif %}
+                    {% if link.active %}!underline{% endif %}
+                  {% endcapture %}
+
+                  {% capture accordion_inner_class %}
+                    !ml-4 !pb-0 mb-2 border--l-width
+                    {{ section.settings.main_color_border }}
+                  {% endcapture %}
+
+                  {% capture accordion_content %}
+                    {% if link.links != blank %}
+                      <div>
+                        {% for child_link in link.links %}
+                          {% capture child_accordion_button_class %}
+                            hover:color__bg-shade-1 px-4 !py-2 type--small
+                            {% if child_link.child_active %}!underline {% endif %}
+                            {% if child_link.active %}!underline{% endif %}
+                          {% endcapture %}
+        
+                          {% capture child_accordion_inner_class %}
+                            !ml-4 !pb-0 mb-2 border--l-width
+                            {{ section.settings.main_color_border }}
+                          {% endcapture %}
+                          
+                          {% capture child_accordion_content %}
+                            {% for grandchild_link in child_link.links %}
+                              <a 
+                                class="
+                                  hover:color__bg-shade-1 type--small !mt-0 flex w-full items-center justify-start gap-4 py-2 pl-4 no-underline opacity-75 hover:opacity-100
+                                  {% if grandchild_link.active %}!underline {% endif %}
+                                "
+                                href="{{ grandchild_link.url }}">
+                                {{ grandchild_link.title }}
+                              </a>
+                            {% endfor %}
+                          {% endcapture %}
+
+                          {% if child_link.links != blank %}
+                            <div>
+                              <div class="flex w-full items-center gap-4">
+                                {% render 'component__accordion',
+                                  container_class: '!border-0 flex-1',
+                                  inner_class: child_accordion_inner_class,
+                                  button_class: child_accordion_button_class,
+                                  button_label: child_link.title,
+                                  button_url: child_link.url,
+                                  content: child_accordion_content,
+                                  is_button: '',
+                                  enable_open: false,
+                                  enable_group_hover: false
+                                %}
+                              </div>
+                            </div>
+                          {% else %}
+                            <a 
+                              class="
+                                hover:color__bg-shade-1 type--small flex w-full items-center justify-start gap-4 py-2 pl-4 no-underline opacity-75 hover:opacity-100
+                                {% if child_link.active %}!underline {% endif %}
+                              "
+                              href="{{ child_link.url }}">
+                              {{ child_link.title }}
+                            </a>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    {% endif %}
+                  {% endcapture %}
+
+                  {% render 'component__accordion',
+                    container_class: '!border-0',
+                    inner_class: accordion_inner_class,
+                    button_class: accordion_button_class,
+                    button_label: link.title,
+                    content: accordion_content,
+                    is_button: '',
+                    enable_open: false,
+                    enable_group_hover: false
+                  %}
+
+                {% else %}
+                  {% comment %} Single link {% endcomment %}
+                  <a
+                    class="hover:color__bg-shade-1 type--small flex w-full items-center justify-between px-4 py-2 no-underline hover:opacity-100"
+                    href="{{ link.url }}"
+                  >
+                    {{ link.title }}
+                  </a>
+                {% endif %}
+              </div>
+            {% endfor %}
+
+          {% when 'content' %}
+            <div
+              class="
+                border--t-width p-4
+                {{ section.settings.main_color_border }}
+              "
+            >
+              {% render 'component__content-item',
+                heading: block.settings.heading,
+                content: block.settings.content,
+                button_label: block.settings.button_label,
+                url: block.settings.url,
+                image: block.settings.image,
+                image_background: block.settings.image_background,
+                video: block.settings.video,
+                enable_autoplay: block.settings.enable_autoplay,
+                enable_mute_toggle: block.settings.enable_mute_toggle,
+                enable_loop: block.settings.enable_loop,
+                color_scheme: block.settings.color_scheme,
+                color_text: block.settings.color_text,
+                color_border: block.settings.color_border,
+                color_button: block.settings.color_button,
+                enable_gradient: block.settings.enable_gradient,
+                enable_padding: block.settings.enable_padding,
+                spacing_minimum_height: block.settings.spacing_minimum_height,
+                spacing_maximum_height: 300,
+                layout_y_alignment: block.settings.layout_y_alignment,
+                layout_x_alignment: block.settings.layout_x_alignment,
+                text_position: block.settings.text_position
+              %}
+            </div>
+
+          {% when 'newsletter' %}
+            {% assign form_id = section.id | append: '-newsletter' | append: menu_type %}
+            {% form 'customer', id: form_id %}
+              <div
+                class="
+                  border--t-width flex flex-col items-start gap-2 p-4
+                  {{ section.settings.main_color_border }}
+                "
+              >
+                {% if form.posted_successfully? %}
+                  <div class="color__bg-shade-2 border--radius space-y-4 p-4">
+                    {{ block.settings.success }}
+                  </div>
+                {% endif %}
+                {% if form.errors %}
+                  <div class="color__bg-shade-2 border--radius space-y-4 p-4">
+                    {{ form.errors | default_errors }}
+                  </div>
+                {% endif %}
+
+                <div class="type--small space-y-2 opacity-75">
+                  {{ block.settings.content }}
+                </div>
+
+                <label
+                  class="sr-only"
+                  for="customer_email_{{ menu_type }}"
+                >
+                  {{ 'labels.email' | t }}
+                </label>
+                <input
+                  id="customer_email_{{ menu_type }}"
+                  class="flex-grow"
+                  type="email"
+                  name="contact[email]"
+                  placeholder="{{ 'actions.email_placeholder' | t }}"
+                  autocorrect="off"
+                  autocapitalize="off"
+                >
+                <button
+                  class="
+                    btn btn--smaller whitespace-nowrap
+                    {{ block.settings.color_button }}
+                  "
+                  type="submit"
+                >
+                  <span class="btn__content">{{ block.settings.button_label }}</span>
+                </button>
+
+                {% unless section.settings.disclaimer == blank %}
+                  <div class="type--smaller space-y-2 opacity-50">
+                    {{ section.settings.disclaimer }}
+                  </div>
+                {% endunless %}
+              </div>
+            {% endform %}
+
+          {% when 'form' %}
+            {% assign form_id = section.id | append: '-contact' | append: menu_type %}
+            {% form 'contact', id: form_id %}
+              <div
+                class="
+                  border--t-width flex flex-col items-start gap-2 p-4
+                  {{ section.settings.main_color_border }}
+                "
+              >
+                {% if form.posted_successfully? %}
+                  <div class="color__bg-shade-2 border--radius space-y-4 p-4">
+                    {{ 'info.form_success' | t }}
+                  </div>
+                {% endif %}
+                {% if form.errors %}
+                  <div class="color__bg-shade-2 border--radius space-y-4 p-4">
+                    {{ form.errors | default_errors }}
+                  </div>
+                {% endif %}
+
+                <div class="type--small space-y-2 opacity-75">
+                  {{ block.settings.content }}
+                </div>
+
+                <div class="w-full">
+                  <label
+                    class="sr-only"
+                    for="contact_email_{{ menu_type }}"
+                  >
+                    {{ 'labels.email' | t }}
+                  </label>
+                  <input
+                    id="contact_email_{{ menu_type }}"
+                    type="email"
+                    name="contact[email]"
+                    placeholder="{{ 'labels.email' | t }}"
+                    value=""
+                    spellcheck="false"
+                    autocomplete="off"
+                    autocapitalize="off"
+                  >
+                </div>
+
+                <div class="flex w-full">
+                  <label
+                    class="sr-only"
+                    for="contact_body_{{ menu_type }}"
+                  >
+                    {{ 'labels.message' | t }}
+                  </label>
+                  <textarea
+                    id="contact_body_{{ menu_type }}"
+                    class=""
+                    name="contact[body]"
+                    rows="2"
+                    placeholder="{{ 'labels.message' | t }}"
+                  ></textarea>
+                </div>
+
+                <button
+                  class="
+                    btn btn--smaller whitespace-nowrap
+                    {{ block.settings.color_button }}
+                  "
+                  type="submit"
+                >
+                  {{ 'actions.send' | t }}
+                </button>
+              </div>
+            {% endform %}
+        {% endcase %}
+      {% endfor %}
+    </div>
+  </nav>
+
+  {% comment %} Sticky footer {% endcomment %}
+  <aside
+    class="
+      border--t-width absolute bottom-0 flex w-full flex-col gap-4 py-4
+      {{ section.settings.bottom_color_border }}
+      {{ section.settings.bottom_color_scheme }}
+    "
+  >
+    <div class="flex w-full flex-wrap items-start gap-2 px-4">
+      {% comment %} Sub links {% endcomment %}
+      {% for link in section.settings.bottom_links.links %}
+        <a
+          class="type--small no-underline"
+          href="{{ link.url }}"
+        >
+          {{ link.title }}
+        </a>
+      {% endfor %}
+
+      {% comment %} Login/account {% endcomment %}
+      {% if shop.customer_accounts_enabled %}
+        <a
+          class="type--small no-underline hover:no-underline"
+          {% if customer %}
+            href="{{ routes.account_url }}"
+            @click.prevent="openAccount()"
+          {% else %}
+            {% if routes.account_login_url contains 'https' %}
+              href="/customer_authentication/login?return_to={{ redirect_url | url_encode }}"
+            {% else %}
+              href="/customer_authentication/login?return_to={{ redirect_url | url_encode }}"
+              @click.prevent="openAccount()"
+            {% endif %}
+          {% endif %}
+        >
+          {% if customer %}
+            <div class="flex items-center gap-2">
+              <div class="color__bg-shade-2 flex h-10 w-10 items-center justify-center rounded-full">
+                {{ customer.first_name | truncate: 1, '' | upcase }}
+              </div>
+              <div>
+                {{ customer.first_name }}
+                {{ customer.last_name }}
+                <div class="type--small opacity-50">
+                  {{ customer.email }}
+                </div>
+              </div>
+            </div>
+          {% else %}
+            {{ 'actions.log_in' | t }}
+          {% endif %}
+        </a>
+      {% endif %}
+
+      {% comment %} Audio settings {% endcomment %}
+      {% if settings.enable_audio %}
+        <button
+          class="type--small flex items-center no-underline"
+          @click="audio_overlay = true;"
+        >
+          {% render 'component__icon', icon: 'volume', size: '14', class: 'mr-1' %}
+          <span x-show="enable_audio == false">{{ 'labels.audio_off' | t }}</span>
+          <span x-show="enable_audio == true">{{ 'labels.audio_on' | t }}</span>
+        </button>
+      {% endif %}
+
+      {% comment %} Localization {% endcomment %}
+      {% if settings.enable_region or settings.enable_language %}
+        <button
+          class="type--small flex items-center gap-2"
+          @click="localization_overlay = true;"
+        >
+          <span
+            class="fi type--smaller"
+            style="background-image: url(https://flagicons.lipis.dev/flags/4x3/{{ localization.country.iso_code | downcase }}.svg)"
+          >
+          </span>
+          <span class="hover:underline">
+            {{ localization.country.currency.symbol }}
+            {{ localization.country.currency.iso_code }}
+            {% if settings.type_separator == 'dot' %}·{% else %}|{% endif %}
+            {{ localization.language.iso_code | upcase }}
+          </span>
+        </button>
+      {% endif %}
+    </div>
+  </aside>
+</div>

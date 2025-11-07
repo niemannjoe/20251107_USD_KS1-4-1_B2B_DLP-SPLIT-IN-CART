@@ -1,0 +1,489 @@
+<div class="logo-preview_modal close">
+  <div class="logo-preview_inner-modal">
+    <h3>{{ product.title }}</h3>
+    {%- assign selected_variant = product.selected_or_first_available_variant -%}
+    {%- assign step_quantity = variant.product.metafields.custom.step_quantity | default: variant.quantity_rule.increment | default: 1 -%}
+       {%- assign variantSku = selected_variant.sku | split: "-" | first -%}
+       
+    <span class="product-meta__sku" {% if variantSku == blank %}style="display: none"{% endif %}>Item#
+      <span class="product-meta__sku-number">{{ variantSku }}</span>
+    </span>
+    <section class="logo-preview-wrapper">
+      <article class="logo-preview_carousel-wrapper">
+        <div class="logo-preview_carousel"></div>
+      </article>
+      <article class="logo-preview_information">
+        <div>
+          <h4>Artwork</h4>
+          <p>Dealership Logo:
+            <a href="#" target="_blank" id="logo-link">Click Here</a>
+          </p>
+          <p>Max Size: 3.5" x 1.75"</p>
+          <label for="notes">Customization Notes:</label>
+          <textarea id="notes" name="notes"></textarea>
+        </div>
+        <div class="order-details">
+          <h4>Order Details</h4>
+            <ul class="modal_line-items"></ul>
+        </div>
+      </article>
+    </section>
+    <form class="actions" id="modal-preview-form">
+      <label>
+        <input type="checkbox" required name="right-to-use" onchange="changeCheckbox(this)">
+        <span>I hereby certify to have the lawful right to use the logo submitted on this item.</span>
+      </label>
+      <label>
+        <input type="checkbox" required name="preview-approved" onchange="changeCheckbox(this)">
+        <span>I have reviewed and approved the design above.
+          <small>*In case colors and dimensions need to be adjusted to better show on the product, we will email you a new mock-up for final approval</small>
+        </span>
+      </label>
+      <button
+        class="modal-submit-button btn btn--primary"
+        type="button"
+        @click.prevent="
+          button_loading = true;
+
+          (()=>{
+            const form = document.getElementById('modal-preview-form');
+            const id = Number(form?.querySelector('input[name=id]')?.value || 0);
+            if (!id) {
+              button_loading = false;
+              alert('Please select a variant before adding to cart.');
+              return;
+            }
+
+            // current modal image (used as fallback if hidden preview isn't set yet)
+            const img = document.querySelector('.logo-preview_modal .logo-preview_carousel img');
+
+            // hidden inputs your custom JS keeps in sync (CDN links)
+            const previewInput = form.querySelector('input[name=&quot;properties[_PreviewImage]&quot;]');
+            const vectorInput  = form.querySelector('input[name=&quot;properties[_VectorImage]&quot;]');
+            const variantInput = form.querySelector('input[name=&quot;properties[_VariantOption]&quot;]');
+
+            // pick the RIGHT image urls
+            const previewUrl = (previewInput?.value || '')
+              || (img?.getAttribute('data-zoom') || img?.src || '');
+            const vectorUrl  = (vectorInput?.value || ''); // vector is stored as CDN/DataURL by your sync
+
+            const variantOpt = variantInput?.value || '';
+            const notes = document.getElementById('notes')?.value || '';
+            const rightToUse = form.querySelector('input[name=right-to-use]')?.checked ? 'Yes' : 'No';
+            const previewApproved = form.querySelector('input[name=preview-approved]')?.checked ? 'Yes' : 'No';
+
+            const formBody = {
+              items: [
+                {
+                  id,
+                  quantity: {{ step_quantity }},
+                  properties: {
+                    _PreviewImage: previewUrl,
+                    _VectorImage:  vectorUrl,
+                    'Customization Notes': notes,
+                    'Right to Use': rightToUse,
+                    'Preview Approved': previewApproved,
+                  },
+                },
+              ],
+            };
+
+            // addCartItem(variantID, sellingPlanId, quantity, openCart, enableAudio, addProperties, formBody)
+            addCartItem(id, 0, {{ step_quantity }}, true, false, true, formBody)
+              .then(() => {
+                const modalEl = document.querySelector('.logo-preview_modal');
+                if (modalEl) modalEl.classList.add('close');
+
+                try {
+                  const submitBtn = document.querySelector('.modal-submit-button');
+                  const openId = String(submitBtn?.getAttribute('data-open-variant-id') || id);
+
+                  const candidates = document.querySelectorAll('.logo-render-popup');
+                  for (const el of candidates) {
+                    const vid =
+                      el.getAttribute('data-variant-id') ||
+                      el.querySelector('[data-variant-id]')?.getAttribute('data-variant-id') ||
+                      '';
+                    if (String(vid) === openId) {
+                      el.classList.remove('logo-render-popup');
+                      break;
+                    }
+                  }
+                } catch (e) {
+                  // ignore
+                }
+              })
+
+          })();
+        "
+      >
+        <span class="button-text modal-button">Add to Cart</span>
+      </button>
+    </form>
+  </div>
+</div>
+
+<style>
+  .logo-preview_modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    background: rgba(200, 200, 200, 0.3);
+  }
+
+  .logo-preview_modal .flickity-prev-next-button.previous {
+    left: 0!important;
+  }
+
+  .logo-preview_modal .flickity-button flickity-prev-next-button next {
+    right: 0!important;
+  }
+
+  .logo-preview_modal .flickity-prev-next-button.previous svg {
+    left: 9px;
+  }
+
+  .logo-preview_modal .flickity-prev-next-button.next svg {
+    left: 7px;
+  }
+
+  .logo-preview_modal .flickity-prev-next-button svg {
+    fill: #b3b3b3;
+  }
+
+  .logo-preview_modal .flickity-prev-next-button {
+    transform: translateY(0);
+    /*transform: scale(.7);*/
+  }
+
+  .logo-preview_modal .flickity-prev-next-button,
+  .logo-preview_modal .flickity-prev-next-button:hover {
+    width: 44px;
+    height: 44px;
+    margin: 2px;
+  }
+
+  .logo-preview_modal button.flickity-button.flickity-prev-next-button.next {
+    right: 0!important;
+  }
+
+  .logo-preview_modal.close {
+    display: none;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: fit-content;
+    overflow: scroll;
+    max-width: 700px;
+    transform: translate(-50%, -50%);
+    padding: 1.5rem;
+    background: #fff;
+    border-radius: 4px;
+    color: rgb(120, 120, 120);
+    font-family: Ford Antenna Light, sans-serif !important;
+    font-size: 0.9rem;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal h3 {
+    margin: 0.25rem 0;
+    color: rgb(99, 101, 155);
+    font-weight: 400;
+    font-size: 1.4rem;
+    width: 100%;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal h4 {
+    margin: 0.25rem 0 0.75rem;
+    color: rgb(99, 101, 155);
+    font-weight: 400;
+    font-size: 1.15rem;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal p {
+    margin: 0.25rem 0;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal textarea {
+    display: block;
+    resize: none;
+    width: 100%;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal a {
+    text-decoration: underline;
+    color: rgb(120, 134, 255);
+    cursor: pointer;
+  }
+  .logo-preview_modal .logo-preview_inner-modal .logo-preview-wrapper {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    margin: 1.5rem 0 1rem;
+    column-gap: 10px;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal .logo-preview_information > div {
+    border-top: 1px solid #d6d6d6;
+    margin-bottom: 1.5rem;
+  }
+
+  input.modal-required {
+    display: none;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal .modal_line-items li {
+    display: flex;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal .modal_line-items li > p {
+    margin: 0;
+    flex-grow: 1;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal .actions > * {
+    display: block;
+    width: 100%;
+    max-width: 80vw;
+  }
+
+  .logo-preview_modal .logo-preview_inner-modal .actions > button {
+    background: rgb(66, 66, 66);
+    color: #fff;
+    border-radius: 1000px;
+    padding: 0.25rem 2rem;
+    width: 50%;
+  }
+
+  .logo-preview_modal #modal-preview-form button[type="submit"] {
+    margin: 20px 0;
+  }
+
+  .logo-preview_modal #modal-preview-form label,
+  .logo-preview_modal #modal-preview-form input {
+    cursor: pointer;
+  }
+
+  .logo-preview_modal #modal-preview-form input {
+    -moz-appearance: checkbox;
+    min-width: 10px;
+    min-height: 10px;
+  }
+
+  .logo-preview_modal button[type="submit"] {
+    position: relative;
+  }
+
+  .button-text {
+    transition: all 0.2s;
+  }
+
+  .button-loading .button-text {
+    visibility: hidden;
+    opacity: 0;
+  }
+
+  .button-loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: auto;
+    border: 4px solid transparent;
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: button-loading-spinner 1s ease infinite;
+  }
+
+  .logo-preview_modal .flickity-prev-next-button.next {
+    right: 10px !important;
+  }
+
+  @keyframes button-loading-spinner {
+    from {
+      transform: rotate(0turn);
+    }
+
+    to {
+      transform: rotate(1turn);
+    }
+  }
+
+
+  @media (max-width: 768px) {
+    .logo-preview_modal .logo-preview_inner-modal .logo-preview-wrapper {
+      grid-template-columns: initial;
+    }
+  }
+</style>
+
+<link rel="stylesheet" href="https://unpkg.com/flickity@2/dist/flickity.min.css">
+<script src="https://unpkg.com/flickity@2/dist/flickity.pkgd.min.js"></script>
+<script>
+  let modalCarousel;
+  const modalElement = document.querySelector(".logo-preview_modal");
+  const modalInnerElement = document.querySelector(".logo-preview_inner-modal");
+  
+  window.document.addEventListener("click", (e) => {
+    const openModalButton = document.querySelector(".btn-open-modal");
+
+    if (modalInnerElement && !modalInnerElement.contains(e.target) && (e.target != openModalButton)) {
+      modalElement.classList.add("close");
+    }
+  })
+
+  let finalVariants = [];
+  
+  window.document.addEventListener("DOMContentLoaded", () => {
+    const modalForm = document.getElementById("modal-preview-form");
+    
+    if (modalForm) {
+      setTimeout( () => {
+        clearVariantElements();
+      }, 200)
+
+      modalForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        // modalElement.classList.add("close");
+
+        const notesTextarea = document.getElementById("notes");
+        const notesFromModal = notesTextarea.value;
+        const submitButton = modalForm.querySelector("button[type='submit']");
+
+        if (submitButton) submitButton.classList.add("button-loading");
+
+        const fileInput = document.querySelector(".logo-preview_input-element");
+        const promises = finalVariants.map(variant => new Promise((resolve) => {
+          uploadFiles(fileInput.files[0], dataURLtoFile(variant.previewDataUrl, "preview.png"),variant.variantName).then(() => resolve());
+        }));
+        Promise.allSettled([...promises /*, addNote(notesFromModal)*/ ]).then(() => {
+          setTimeout(() => {
+            const addToCartForm = document.getElementById("modal-preview-form");
+            if(typeof addToCartForm.submit === "function") {
+              fetch("/cart/add.js", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  items: [{
+                    id: "{{ linklists.gift-wrapping.links.first.object.variants.first.id }}",
+                    quantity: 1                  
+                  }]
+                })
+              }).then((res) => res.json()).then(res => {
+                Object.entries(res).map(([key, value]) => {
+                  console.log(key);
+                  console.log(value);
+                })
+              })
+  
+              addToCartForm.submit();
+            }
+          }, 1000);
+        })
+      })
+    }
+  })
+
+  function changeCheckbox(target) {
+    const name = target.getAttribute("name");
+    const checkboxForm = document.querySelector(`input.modal-required[name="${name}"]`);
+    if (checkboxForm) checkboxForm.checked = target.checked;
+  }
+
+  function clearVariantElements() {
+
+    const modalCheckboxes = document.querySelectorAll("#modal-preview-form input[type='checkbox']");
+    const logoInput = document.querySelector(".logo-preview_input-element");
+    const quantityInputs = document.querySelectorAll(".quantity-selector-input");
+    const modalRequiredInputs = document.querySelectorAll("input.modal-required");
+
+
+    if (logoInput) logoInput.value = "";
+
+    modalCheckboxes.forEach( modalCheckbox => {
+      modalCheckbox.checked = false;
+    })
+
+    modalRequiredInputs.forEach( modalRequiredInput => {
+      modalRequiredInput.checked = false;
+      modalRequiredInput.value = false;
+    })
+
+    quantityInputs.forEach( quantityInput => {
+      quantityInput.value = 0;
+    })
+  }
+
+  function openModal(variants = []) {
+    if (variants.length && typeof getSessionInformation === "function") {
+      const payload = getSessionInformation();
+      if (payload) {
+        const previewCarousel = window.document.querySelector(".logo-preview_carousel-wrapper");    
+        previewCarousel.innerHTML = "";
+        const carousel = window.document.createElement("div");
+        carousel.classList.add("logo-preview_carousel");
+        finalVariants = [];
+
+        for(let i = 0; i < variants.length; i++) {
+          const variant = variants[i];
+          finalVariants.push(payload[variant]);
+          const previewImageSource = payload[variant].previewDataUrl;
+          
+          const slideElement = document.createElement("div");
+          slideElement.classList.add("carousel-cell");
+          slideElement.innerHTML = `
+          <img src="${previewImageSource}" alt="img-${i}-${variant}" >
+          `;
+          carousel.appendChild(slideElement);
+          
+          const logoImageSource = payload[variant].logoDataUrl;
+          const linkToLogo = document.getElementById("logo-link");
+          linkToLogo.setAttribute("download", payload[variant].logoName);
+          linkToLogo.href = logoImageSource;
+        }
+        previewCarousel.appendChild(carousel);
+        setTimeout(() => {
+          const hasMultipleCells = finalVariants.length > 1;
+          
+          if (hasMultipleCells) {
+            modalCarousel = new Flickity(carousel, { "freeScroll": true, imagesLoaded: true });
+          } else {
+            modalCarousel = new Flickity(carousel, { "freeScroll": true, imagesLoaded: true, pageDots: false, prevNextButtons: false });
+          }
+          modalCarousel.resize();
+        }, 100);
+        
+      }
+    }
+    const listOrderDetails = document.querySelector(".modal_line-items");
+    listOrderDetails.innerHTML = "";
+    const inputs = document.querySelectorAll("input.quantity-selector-input");
+    for (let i = 0; i < inputs.length; i++) {
+      if (inputs[i].value !== 0 && inputs[i].value !== "0") {
+        const optionValue = inputs[i].value;    
+        const optionTitle = inputs[i].closest(".variant-row")? inputs[i].closest(".variant-row").getAttribute("data-options") : "Default variant";
+        const optionElement = document.createElement("li");
+        optionElement.innerHTML = `
+            <p>${optionTitle}</p>
+            <span>${optionValue}</span>
+        `;
+        listOrderDetails.appendChild(optionElement);
+      }
+    }
+
+    modalElement.classList.remove("close");
+
+  }
+</script>

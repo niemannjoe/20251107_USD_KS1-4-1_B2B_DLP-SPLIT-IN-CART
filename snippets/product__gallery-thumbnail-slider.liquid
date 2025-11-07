@@ -1,0 +1,340 @@
+<!-- snippets/product__gallery-thumbnail-slider.liquid -->
+{% comment %}
+  Block to display product photos in a slider with thumbnails.
+
+  Accepts:
+  - is_featured: {boolean} Assigns product object from section settings. Set this to true if block is used within a section rather than product template.
+
+  Globals:
+  - layout_gap_size: {integer} Sets the gap size in the grid layout.
+
+  Usage:
+    {% render 'product__gallery-grid',
+      is_featured: true
+    %}
+
+  Possible enhancements:
+  - Add global setting to set grid gap width and apply to entire theme.
+  - Move position of indicators to avoid overlap of alt text.
+{% endcomment %}
+
+{% liquid
+  assign has_3d = product.media | where: 'media_type', 'model' | first
+
+  if is_featured
+    assign product = section.settings.product
+    if request.design_mode and product == null
+      for product in collections.all.products limit: 1
+        assign product = product
+      endfor
+    endif
+  endif
+
+  if section.settings.media_object_sizing == 'cover'
+    capture crop_class
+      echo 'object-cover'
+    endcapture
+  else
+    capture crop_class
+      echo 'object-contain'
+    endcapture
+  endif
+
+  if section.settings.enable_ratio
+    capture ratio_class
+      echo section.settings.media_ratio
+    endcapture
+  endif
+
+  if is_overlay
+    capture ratio_class
+      echo 'aspect-[1/1]'
+    endcapture
+    capture crop_class
+      echo 'object-cover'
+    endcapture
+  endif
+%}
+
+<div class="group w-full">
+  <div
+    class="flex h-full flex-wrap overflow-hidden md:flex-nowrap"
+    style="
+      gap: {{ settings.gap_size }}px;
+      padding: {{ settings.border_element_width }}px;
+      scroll-padding: {{ settings.border_element_width }}px;
+    "
+    x-data="
+      {
+        slider_height: 0
+      }
+    "
+  >
+    {% comment %} Thumbnails - desktop only {% endcomment %}
+    <div
+      class="
+        js-thumbnailSlider hidden max-h-[200px] min-w-[32px] basis-[10%] flex-col overflow-y-auto overflow-x-hidden
+        md:flex
+      "
+      style="
+        gap: {{ settings.gap_size }}px;
+        padding: {{ settings.border_element_width }}px;
+      "
+      :style="
+        {
+          maxHeight: slider_height + 'px',
+        }
+      "
+    >
+      {% capture media_group %}{% endcapture %}
+      {% for media in product.media %}
+        {% for variant in product.variants %}
+          {% if media.src == variant.featured_image %}
+            {% capture media_group %}
+              {{ variant.featured_image.id }}
+            {% endcapture %}
+          {% endif %}
+        {% endfor %}
+        <div
+          class="
+            border--radius animation-300 relative w-full flex-none overflow-hidden hover:cursor-pointer md:snap-start
+            {{ section.settings.media_border }}
+            {{ media | handle }}
+          "
+          @click="            galleryScrollToIndex({{ forloop.index0 }});"
+          {% if media.media_type == 'image' and section.settings.enable_variant_images %}
+            x-show="current_variant_featured_image_id == {{ media_group }}"
+          {% endif %}
+        >
+          {% comment %} Badges {% endcomment %}
+          {% if media.media_type == 'model' %}
+            <div class="pointer-events-none absolute left-0 top-0 z-10">
+              <div class="color__bg-overlay-1 flex p-0.5">
+                {% render 'component__icon', icon: '3d', size: '12' %}
+              </div>
+            </div>
+          {% endif %}
+          {% if media.media_type == 'external_video' or media.media_type == 'video' %}
+            <div class="pointer-events-none absolute left-0 top-0 z-10">
+              <div class="color__bg-overlay-1 flex p-0.5">
+                {% render 'component__icon', icon: 'play', size: '12' %}
+              </div>
+            </div>
+          {% endif %}
+
+          {% comment %} Image {% endcomment %}
+          {% render 'component__image',
+            image: media,
+            max_width: 200,
+            background_class: '',
+            ratio_class: 'aspect-[1/1]',
+            crop_class: 'object-cover',
+            enable_lazy_load: true
+          %}
+        </div>
+      {% endfor %}
+    </div>
+
+    {% comment %} Main images {% endcomment %}
+    <div
+      class="        relative flex w-full md:basis-[90%]"
+      x-ref="gallery_slider"
+      x-init="        slider_height = $refs.gallery_slider.offsetHeight;"
+    >
+      {% comment %} Slides {% endcomment %}
+      <div
+        class="hidescrollbar js-slider inline-flex w-full overflow-x-auto overflow-y-hidden scroll-smooth whitespace-nowrap text-center md:snap-x md:snap-mandatory"
+        style="
+          gap: {{ settings.gap_size }}px;
+          padding: {{ settings.border_element_width }}px;
+          scroll-padding: {{ settings.border_element_width }}px;
+        "
+        x-ref="slider"
+      >
+        {% capture media_group %}{% endcapture %}
+        {% for media in product.media %}
+          {% for variant in product.variants %}
+            {% if media.src == variant.featured_image.src %}
+              {% capture media_group %}
+                {{ variant.featured_image.id }}
+              {% endcapture %}
+            {% endif %}
+          {% endfor %}
+          <div
+            class="
+              border--radius relative flex flex-none flex-col items-center overflow-hidden md:snap-start
+              js-{{ media.id }}
+              {{ section.settings.media_color_scheme }}
+              {{ section.settings.media_border }}
+              {% if is_overlay %}
+                w-2/5
+              {% else %}
+                {% if product.media.size > 1 %}
+                w-[{{ section.settings.media_slider_size_mobile }}%]  md:w-[{{ section.settings.media_slider_size_desktop }}%]
+                {% else %}
+                  w-full
+                {% endif %}
+              {% endif %}
+            "
+            x-bind:data-slide="{{ forloop.index0 }}"
+            x-intersect:enter.half="gallery_index = {{ forloop.index0 }};"
+            {% if section.settings.enable_variant_images and media.media_type == 'image' %}
+              x-show="current_variant_featured_image_id == {{ media_group }}"
+            {% endif %}
+          >
+            {% case media.media_type %}
+              {% when 'image' %}
+                {% render 'gallery__image',
+                  media: media,
+                  ratio_class: ratio_class,
+                  crop_class: crop_class,
+                  enable_zoom: section.settings.enable_zoom,
+                  enable_alt: section.settings.enable_alt,
+                  index: forloop.index0
+                %}
+
+              {% when 'video' %}
+                {% render 'gallery__video', media: media, ratio_class: ratio_class, crop_class: crop_class %}
+
+              {% when 'external_video' %}
+                {% render 'gallery__external_video', media: media, ratio_class: ratio_class, crop_class: crop_class %}
+
+              {% when 'model' %}
+                {% capture model_viewer_id %}
+                  {{ media.id }}-grid
+                {% endcapture %}
+                {% render 'gallery__model', media: media, ratio_class: ratio_class, model_viewer_id: model_viewer_id %}
+            {% endcase %}
+          </div>
+        {% endfor %}
+      </div>
+
+      {% comment %} Indicators {% endcomment %}
+      {% if product.media.size > 1 %}
+        <div class="animation-300 absolute bottom-2 left-0 right-0 z-10 flex w-full flex-wrap items-center justify-center overflow-hidden text-center group-hover:opacity-100 md:opacity-0">
+          <div
+            class="color__bg-shade-3 relative flex w-auto items-center justify-center gap-2 rounded-full p-1"
+          >
+            {% capture media_group %}{% endcapture %}
+            <button
+              class="color__light leading-none"
+              style="cursor: w-resize;"
+              title="{{ 'actions.previous' | t }}"
+              type="button"
+              @click="galleryScrollBack();"
+            >
+              {% render 'component__icon', icon: 'chevron-small-left', size: '20', class: '' %}
+            </button>
+            {% if product.media.size > 9 %}
+              <span class="type--smaller color__light">
+                <span x-text="gallery_index+1">1</span>/<span>{{ product.media.size }}</span>
+              </span>
+            {% else %}
+              {% for media in product.media %}
+                {% for variant in product.variants %}
+                  {% if media.src == variant.featured_image %}
+                    {% capture media_group %}
+                      {{ variant.featured_image.id }}
+                    {% endcapture %}
+                  {% endif %}
+                {% endfor %}
+
+                <button
+                  class="animation-300--all focus-visible:border--focus--inset h-2 w-2 rounded-full bg-white opacity-75"
+                  :class="
+                    {
+                      '!opacity-100 !w-6': gallery_index === {{ forloop.index0 }}
+                    }
+                  "
+                  type="button"
+                  aria-label="gallery_grid_button_{{ forloop.index0 }}"
+                  @click="                    galleryScrollToIndex({{ forloop.index0 }});"
+                  {% if media.media_type == 'image' and section.settings.enable_variant_images %}
+                    x-show="current_variant_featured_image_id == {{ media_group }}"
+                  {% endif %}
+                ></button>
+              {% endfor %}
+            {% endif %}
+            <button
+              class="color__light leading-none"
+              style="cursor: e-resize;"
+              title="{{ 'actions.next' | t }}"
+              type="button"
+              @click="galleryScrollNext();"
+            >
+              {% render 'component__icon', icon: 'chevron-small-right', size: '20', class: '' %}
+            </button>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    {% comment %} Thumbnails - mobile only {% endcomment %}
+    <div
+      class="hidescrollbar flex h-full overflow-x-auto md:hidden"
+      style="
+        gap: {{ settings.gap_size }}px;
+        padding: {{ settings.border_element_width }}px;
+      "
+    >
+      {% capture media_group %}{% endcapture %}
+      {% for media in product.media %}
+        {% for variant in product.variants %}
+          {% if media.src == variant.featured_image.src %}
+            {% capture media_group %}
+              {{ variant.featured_image.id }}
+            {% endcapture %}
+          {% endif %}
+        {% endfor %}
+        <div
+          class="
+            border--radius animation-300 relative w-16 flex-none overflow-hidden opacity-50 md:snap-start
+            {{ media | handle }}
+            {{ section.settings.media_border }}
+          "
+          :class="
+            {
+              '!opacity-100': gallery_index === {{ forloop.index0 }}
+            }
+          "
+          x-bind:data-slide="{{ forloop.index0 }}"
+          @click="            galleryScrollToIndex({{ forloop.index0 }});"
+          {% if section.settings.enable_variant_images %}
+            x-show="current_variant_featured_image_id == {{ media_group }}"
+          {% endif %}
+        >
+          {% comment %} Badges {% endcomment %}
+          {% if media.media_type == 'model' %}
+            <div class="pointer-events-none absolute left-0 top-0 z-10 flex">
+              <div class="color__bg-overlay-1 flex p-0.5">
+                {% render 'component__icon', icon: '3d', size: '10' %}
+              </div>
+            </div>
+          {% endif %}
+          {% if media.media_type == 'external_video' or media.media_type == 'video' %}
+            <div class="pointer-events-none absolute left-0 top-0 z-10 flex">
+              <div class="color__bg-overlay-1 flex p-0.5">
+                {% render 'component__icon', icon: 'play', size: '10' %}
+              </div>
+            </div>
+          {% endif %}
+
+          {% comment %} Images {% endcomment %}
+          {% render 'component__image',
+            image: media,
+            max_width: 200,
+            background_class: '',
+            ratio_class: 'aspect-[1/1]',
+            crop_class: 'object-cover',
+            enable_lazy_load: true
+          %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% comment %} Load 3d viewer {% endcomment %}
+{% if has_3d %}
+  {% render 'script__model' %}
+{% endif %}

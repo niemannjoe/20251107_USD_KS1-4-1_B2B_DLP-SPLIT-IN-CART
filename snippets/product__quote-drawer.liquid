@@ -1,0 +1,231 @@
+<!-- snippets/product_quote-drawer.liquid -->
+{% comment %}
+  Block to display a link to open a customizeable drawer overlay.
+
+  Accepts:
+  - block: {object} Liquid object of block settings.
+
+  Globals:
+  - close_button_color: {string} Class string to set close button color.
+  - close_button_content: {string} Content of the close button.
+
+  Usage:
+    {% render 'product_quote-drawer',
+      block: block
+    %}
+
+  Possible enhancements:
+  - Add option to set overlay style to overlay or drawer.
+
+  Recommendations:
+  - This can be used to display a variety of content on product pages in collapsable pannels. For example this block can be used to display a sizing guide page in a drawer.
+{% endcomment %}
+
+{% comment %} Drawer id {% endcomment %}
+{% capture drawer_id %}
+  drawer_quote
+{% endcapture %}
+
+{% comment %} Drawer content {% endcomment %}
+{% capture drawer_content %}
+  <div class="color__bg-body h-full">
+    
+    {% comment %} Title and close button {% endcomment %}
+    <section 
+      class="border--b-width color__border-divider-1 color__bg-body sticky top-0 z-20 hidden items-center justify-between p-4 md:flex">
+      <span>{{ block.settings.button_text }}</span>
+      <button class="btn btn--small
+        {{ settings.close_button_color }}"
+        title="{{ 'actions.close' | t }}"
+        @click="
+          drawer_{{ block.id }} = false; 
+          hide_header = false;
+          reset_product_zindex = false; 
+          enable_body_scrolling = true;
+        ">
+        {% if settings.close_button_content contains 'icon' %}
+          {% render 'component__icon', icon: 'x', size: '20' %} 
+        {% endif %}
+        {% if settings.close_button_content contains 'text' %}
+          <span 
+            {% if settings.close_button_content contains 'icon' %}class="ml-1"{% endif %}>
+            {{ 'actions.close' | t }}
+          </span>
+        {% endif %}
+      </button>
+    </section>
+
+    {% comment %} Content {% endcomment %}
+    <div class="color__bg-body p-4">
+      {% assign form_id = section.id | append: '-contact' %}
+      {% form 'contact', id: form_id %}
+        <div class=" flex flex-col items-start gap-4">
+          
+          {% if form.errors %}
+            <div class="color__bg-shade-1 type--small border--radius w-full p-2">
+              {{ form.errors | default_errors }}
+            </div>
+          {% endif %}
+
+          {% if form.posted_successfully? %}
+            <div class="color__bg-shade-1 type--small border--radius w-full p-2">
+              {{ block.settings.success_message }}
+            </div>
+          {% endif %}
+    
+          <div class="rte">
+            {{ block.settings.content }}
+          </div>
+          
+          <div class="w-full">
+
+            <label 
+              for="quote_product">
+              {{ 'labels.product' | t }}
+            </label>
+            <div class="relative">
+              {% render 'component__image',
+                image: product.featured_image,
+                max_width: 24,
+                parent_class: '!absolute h-full right-4 border--radius',
+                background_class: '',
+                ratio_class: 'aspect-[1/1]',
+                crop_class: 'object-cover',
+                enable_lazy_load: true
+              %}
+              <input
+                type="text"
+                value="{{ product.title }}"
+                disabled
+                required>
+              <input
+                id="quote_product"
+                class="hidden"
+                type="text"
+                name="contact[product]"
+                value="{{ product.title }}"
+                required>
+            </div>
+          </div>
+
+          {% if block.settings.enable_quantity_input %}
+            <div 
+              class="group relative w-full"
+              x-data="{ quantity: 1 }">
+              <label
+                for="quote-quantity"
+              >
+                {{ 'labels.quantity' | t }}
+              </label>
+              <div
+                class="border__input--radius border__input color__border-input hover:border__input--hover focus-within:border__input--focus relative flex overflow-hidden {{ input_class }}"
+              >
+                <input
+                  id="quote-quantity"
+                  class="!rounded-none !border-0 text-center"
+                  type="number"
+                  name="contact[quantity]"
+                  placeholder="0"
+                  min="1"
+                  x-model="quantity"
+                >
+                <div class="color__bg-input color__input absolute left-0 flex h-full flex-col justify-center gap-0">
+                  <button
+                    class="btn btn--smaller btn--plain color__outline-input outline--width !h-full shrink-0 !rounded-none !px-2"
+                    title="{{ 'actions.decrease_item_quantity' | t }}"
+                    type="button"
+                    tabindex="-1"
+                    @click.prevent="quantity = Math.max(1, Number(quantity) - 1)"
+                  >
+                    {% render 'component__icon', icon: 'minus', size: '14', class: '' %}
+                  </button>
+                </div>
+                <div class="color__bg-input color__input absolute right-0 flex h-full flex-col justify-center gap-0">
+                  <button
+                    class="btn btn--smaller btn--plain color__outline-input outline--width !h-full shrink-0 !rounded-none !px-2"
+                    title="{{ 'actions.increase_item_quantity' | t }}"
+                    type="button"
+                    tabindex="-1"
+                    @click.prevent="quantity = Number(quantity) + 1"
+                  >
+                    {% render 'component__icon', icon: 'plus', size: '14', class: '' %}
+                  </button>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="w-full">
+            <label 
+              for="quote_email_tooltip">
+              {{ 'labels.email' | t }}
+            </label>
+            <input
+              id="quote_email_tooltip"
+              type="email"
+              name="contact[email]"
+              placeholder="{{ 'actions.enter_email' | t }}"
+              value=""
+              required
+              spellcheck="false"
+              autocomplete="off"
+              autocapitalize="off">
+          </div>
+    
+          {% if block.settings.enable_phone_input %}
+            <div class="w-full">
+              <label 
+              for="quote_phone_tooltip">
+              {{ 'labels.phone' | t }}
+            </label>
+            <input
+              id="quote_phone_tooltip"
+              type="tel"
+              name="contact[phone]"
+              placeholder="{{ 'actions.enter_phone' | t }}"
+              value=""
+              required
+              spellcheck="false"
+              autocomplete="off"
+                autocapitalize="off">
+            </div>
+          {% endif %}
+
+          {% if block.settings.enable_message_input %}
+            <div class="flex w-full flex-col">
+              <label 
+              for="quote_body_tooltip">
+              {{ 'labels.message' | t }}
+            </label>
+            <textarea
+              id="quote_body_tooltip"
+              name="contact[body]"
+              rows="2"
+                placeholder="{{ 'actions.enter_message' | t }}"></textarea>
+            </div>
+          {% endif %}
+    
+          <button 
+            class="
+              btn 
+              {{ block.settings.color_button }}
+            "
+            type="submit">
+            {{ 'actions.submit' | t }}
+          </button>
+
+        </div>
+      {% endform %}
+    </div>
+
+  </div>
+{% endcapture %}
+
+{% render 'component__dragdrawer',
+  drawer_id: drawer_id,
+  mobile_pos: 'bottom',
+  desktop_pos: 'right',
+  enable_full_height: false,
+  enable_focus_trap: true,
+  content: drawer_content
+%}

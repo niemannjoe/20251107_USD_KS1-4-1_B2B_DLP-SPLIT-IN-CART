@@ -1,0 +1,59 @@
+<!-- snippets/product__quote-button.liquid -->
+{% comment %}
+  Block to display a link to open a customizeable drawer overlay.
+
+  Accepts:
+  - block: {object} Liquid object of block settings.
+
+  Globals:
+  - close_button_color: {string} Class string to set close button color.
+  - close_button_content: {string} Content of the close button.
+
+  Usage:
+    {% render 'product__quote-button',
+      block: block
+    %}
+
+  Possible enhancements:
+  - Add option to set overlay style to overlay or drawer.
+
+  Recommendations:
+  - This can be used to display a variety of content on product pages in collapsable pannels. For example this block can be used to display a sizing guide page in a drawer.
+{% endcomment %}
+
+{% if block.settings.option == blank %}
+  <div
+    id="product-quote-drawer-{{ block.id }}"
+    class="
+      flex flex-col items-start gap-2
+      {{ block.settings.color_scheme }}
+      {{ block.settings.color_border }}
+      {{ block.settings.style_border }}
+    "
+    style="
+      padding-top:{{ block.settings.spacing_top }}px;
+      padding-bottom:{{ block.settings.spacing_bottom }}px;
+    "
+  >
+    {% comment %} Button {% endcomment %}
+    <button
+      class="btn btn--load !w-full {{ block.settings.color_button }}"
+      type="button"
+      @click="
+        drawer_quote = true;
+        hide_header = true;
+        enable_body_scrolling = false;
+      "
+    >
+      {{ block.settings.button_text }}
+    </button>
+
+    <div
+      class="color__bg-shade-1 type--small border--radius w-full p-2"
+      x-show="window.location.search.includes('contact_posted=true')"
+      x-cloak
+    >
+      {{ block.settings.success_message }}
+    </div>
+  </div>
+{% endif %}

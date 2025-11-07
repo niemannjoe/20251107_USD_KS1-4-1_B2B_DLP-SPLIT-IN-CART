@@ -1,0 +1,207 @@
+{% comment %} INSTRUCTION STEP GRAPHIC {% endcomment %}
+
+ <div class="logoupload_step1">
+  <p class="instruction">upload logo</p>
+</div>
+  
+
+<div class="logo-preview_input invalid">
+  <article>
+    <label>
+      UPLOAD YOUR DEALERSHIP LOGO (.png, .ai, .eps)
+
+      <div class="input_wrapper">
+        <input
+          type="file"
+          accept=".png,.ai,.eps"
+          name="logo"
+          class="logo-preview_input-element"
+          onchange="onChangeFileInput(this)">
+        <div class="loading-overlay"></div>
+      </div>
+    </label>
+  </article>
+</div>
+<small class="fee-message">{% comment %}{% render 'logo-preview-modal' %}{% endcomment %}</small>
+
+{%- assign logoPositions = productTags | split: "__logo_positions:" | last | strip | split: '|||' | first | split: "||" %}
+
+<div class="position-selector-component">
+  <span>Location:</span>
+  <div class="position-selector-wrapper">
+    {%- for logoPosition in product.metafields.custom.logo_positions.value -%}
+      {%- assign logoPositionName = logoPosition | split: ":" | first | strip %}
+      <div class="position-option-item">
+        <input type="radio" onchange="changeLogoPosition(this)" {% if forloop.index0 == 0 %}checked{% endif %} id="position-option-{{ forloop.index }}" name="logo-position" value="{{ logoPositionName | strip }}">
+        <label for="position-option-{{ forloop.index }}"> {{ logoPositionName | strip }}</label>
+      </div>
+    {%- endfor -%}
+  </div>
+</div>
+
+<script src="https://sdk.amazonaws.com/js/aws-sdk-2.1.24.min.js"></script>
+{{ 'logo-preview.js' | asset_url | script_tag }}
+
+
+<style>
+  .error-message {
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    font-family: 'Ford Antenna Regular';
+    color: red;
+  }
+  .loading-overlay {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background-color: #0000009e;
+      width: 100%;
+      height: 100%;
+  }
+  .loading-overlay.show {
+    display: block;
+  }
+
+  .button-loading2::before {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    width: 50px;
+    height: 50px;
+    top: calc(50% - 25px);
+    left: 20%;
+    border: 4px solid transparent;
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: button-loading-spinner 1s ease infinite;
+  }
+  .button-loading2::after {
+    content: "Your file is rendering to customize your item.";
+    font-size: 1rem;
+    line-height: 1.2;
+    position: absolute;
+    font-weight: bold;
+    z-index: 1;
+    left: 35%;
+    top: 50%;
+    transform: translate(0, -50%);
+    max-width: 65%;
+    white-space: break-spaces;
+    color: #fff;
+  }
+
+  .position-selector-component {
+    margin: 10px 0;
+  }
+
+  .position-selector-wrapper {
+    display: flex;
+    column-gap: 30px;
+    font-size: 0.8em;
+  }
+
+  .position-selector-wrapper .position-option-item {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    column-gap: 5px;
+  }
+
+  .position-selector-wrapper label,
+  .position-selector-wrapper input {
+    cursor: pointer;
+  }
+
+  .position-selector-wrapper input[type="radio"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: var(--form-background);
+    margin: 0;
+    font: inherit;
+    color: currentColor;
+    width: 1.15em;
+    height: 1.15em;
+    border: 0.15em solid currentColor;
+    border-radius: 50%;
+    transform: translateY(-0.075em);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .position-selector-wrapper input[type="radio"]::before {
+    content: "";
+    width: 0.65em;
+    height: 0.65em;
+    border-radius: 50%;
+    transform: scale(0);
+    transition: 120ms transform ease-in-out;
+    box-shadow: inset 1em 1em var(--form-control-color);
+    background-color: CanvasText;
+  }
+
+  .position-selector-wrapper input[type="radio"]:checked::before {
+    transform: scale(1);
+  }
+
+  /*.position-selector-wrapper input[type="radio"]:focus {
+    outline: max(2px, 0.15em) solid currentColor;
+    outline-offset: max(2px, 0.15em);
+  }*/
+
+  #uploadery-container {
+    display: none !important;
+  }
+
+  #fdl_instructions {
+    height: auto;
+  }
+
+  .logo-preview_input {
+    margin-bottom: 0.75rem;
+    color: #00095b;
+    border-radius: 3px;
+  }
+  .logo-preview_input.invalid {
+    padding: 0 10px 10px;
+    background: #fef6f5;
+    border: 1px solid #ff5d5d;
+  }
+  .logo-preview_input label {
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    font-family: 'Ford Antenna Regular';
+  }
+  .logo-preview_input label .input_wrapper {
+    height: 80px;
+    background: #f7f7f7;
+    border: 1px solid #eee;
+    padding: 20px;
+    font-family: Ford Antenna Light, sans-serif !important;
+    position: relative;
+  }
+  .logo-preview_input label .input_wrapper input[type="file"] {
+    color: rgb(95, 95, 95);
+    font: inherit;
+    font-size: 0.95rem;
+    width: 100%;
+  }
+  .logo-preview_input label .input_wrapper input[type="file"]::file-selector-button {
+    line-height: normal;
+    border-radius: 0;
+    background: rgb(0, 9, 91);
+    color: #fff;
+    border: none;
+    padding: 0.65rem 1.25rem;
+    margin-right: 1.25rem;
+    cursor: pointer;
+  }
+  .logo-preview_input label .input_wrapper input[type="file"]::file-selector-button:hover {
+    background: rgb(13, 69, 165);
+  }
+</style>
+
+<div class="logoupload_step2">
+  <p class="instruction">select quantity</p>
+</div>
