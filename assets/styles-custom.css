@@ -1,0 +1,396 @@
+/* 
+
+Custom Styles by Entertainment Retail Enterprises, LLC
+Author: Joe Niemann
+Creation Date: 20250801
+
+*/
+
+/**** Global ****/
+/* Custom Fonts */
+/*  Ford F-1 Font Family (Replacing Ford Antenna)  */
+@font-face {font-family:'Ford F-1 Light'; src:url('https://cdn.shopify.com/s/files/1/0551/4860/9721/files/FordF-1-Light.otf') format('opentype'); font-weight:normal; font-style:normal;}
+@font-face {font-family:'Ford F-1 Regular'; src:url('https://cdn.shopify.com/s/files/1/0551/4860/9721/files/FordF-1-Regular.otf') format('opentype'); font-weight:normal; font-style:normal;}
+@font-face {font-family:'Ford F-1 Medium'; src:url('https://cdn.shopify.com/s/files/1/0551/4860/9721/files/FordF-1-Medium.otf') format('opentype'); font-weight:normal; font-style:normal;}
+@font-face {font-family:'Ford F-1 Semibold'; src:url('https://cdn.shopify.com/s/files/1/0551/4860/9721/files/FordF-1-Semibold.otf') format('opentype'); font-weight:normal; font-style:normal;}
+@font-face {font-family:'Ford F-1 Bold'; src:url('https://cdn.shopify.com/s/files/1/0551/4860/9721/files/FordF-1-Bold.otf') format('opentype'); font-weight:normal; font-style:normal;}
+
+@font-face {
+    font-family: 'Ford Antenna Light';
+    src: url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntenna-Light.eot') format('eot'),
+      	 url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntenna-Light.woff2') format('woff2'),
+      	 url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntenna-Light.woff') format('woff'),
+         url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntenna-Light.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+
+@font-face {
+    font-family: 'Ford Antenna Regular';
+    src: url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntenna-Regular.eot') format('eot'),
+      	 url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntenna-Regular.woff2') format('woff2'),
+      	 url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntenna-Regular.woff') format('woff'),
+         url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntenna-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Ford Antenna Cond Light';
+    src: url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntennaCond-Light_532eb568-29e7-421c-9c8f-6973d82e5948.eot') format('eot'),
+      	 url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntennaCond-Light_103133ae-8695-4334-9b9b-013afda6eea2.woff2') format('woff2'),
+      	 url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntennaCond-Light_93ad1e7c-4ca3-4a30-9264-0c45ac954801.woff') format('woff'),
+         url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntennaCond-Light_ceb5964d-a2dc-4cf1-b8fd-9a3fe852cffa.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Ford Antenna Cond Regular';
+    src: url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntennaCond-Regular.eot') format('eot'),
+      	 url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntennaCond-Regular.woff2') format('woff2'),
+      	 url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntennaCond-Regular.woff') format('woff'),
+         url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntennaCond-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+
+@font-face {
+    font-family: 'Ford Antenna Semibold';
+    src: url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntenna-Semibold.eot') format('eot'),
+      	 url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntenna-Semibold.woff2') format('woff2'),
+      	 url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntenna-Semibold.woff') format('woff'),
+         url('https://cdn.shopify.com/s/files/1/0551/1148/3549/files/FordAntenna-Semibold.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+[class*="fa-"] {font-family:'FontAwesome';}
+button.header__link.animation-300.flex.items-center.pb-4.no-underline.type__body {
+    color: #00095b;
+}
+.rte h4 {
+    text-transform: inherit;
+    font-size: 16px;
+    margin-bottom: 6px;
+}
+.rte p {
+    margin-bottom: 18px;
+    font-size: 16px;
+}
+
+/* LOGIN */
+#customer_login input, #customer_logintextarea {border: solid 2px #f4f4f4 !important;}
+#customer_login input:focus-visible, #customer_logintextarea:focus-visible {box-shadow: 0 0 0 2px #066fef, 0 0 0 4px #066fef;}
+#customer_login .flex.gap-4 a, #sections--19292688122041__signup-login button.btn.btn--plain:last-of-type {display:none!important;}
+/* Style the buttons that are used to open and close the accordion panel */
+.accordion {
+    background: linear-gradient(#f8f8f8,#fff);
+    color: var(--color__text-light);
+    cursor: pointer;
+    border-top: 1px solid #e8e8e8 !important;
+    padding: 22px 18px 0;
+    width: 100%;
+    text-align: left;
+    border: none;
+    outline: none;
+    transition: .4s;
+    text-align: center;
+    font-family: 'Ford F-1 Regular';
+    margin-top: 15px;
+}
+
+
+/* Add a background color to the button if it is clicked on (add the .active class with JS), and when you move the mouse over it (hover) */
+.active, .accordion:hover {
+  background: linear-gradient(#f2f2f2,#fff);
+}
+
+/* Style the accordion panel. Note: hidden by default */
+.accordion-panel {
+    padding: 0 40px;
+    margin: 10px auto 30px;
+    width: 100%;
+    max-width: 400px;
+    max-height: 0;
+    display: inline-block;
+    overflow: hidden;
+    transition: max-height .2s 
+ease-out;
+}
+
+/* GLOBAL ADJUSTMENTS*/
+/* BUTTON STYLE ADJUSTMENTS */
+.btn.btn--minimal {color:#fff!important; font-family:'Ford F-1 Light', sans-serif!important; padding:0; font-size:14px; line-height:1.1!important;}
+.btn.btn--minimal:hover {text-decoration-line:none!important;}
+.btn.btn--minimal:hover:after {color:#066fef; transition:ease all, .3s;}
+.btn.btn--minimal:after {font-family:'FontAwesome'!important; content: "\f138"!important; display: inline-block; padding:0 3px 0 6px; vertical-align: middle; font-weight:900; font-size:1.1rem;}
+.btn {padding:.5rem 1rem;}
+.btn--plain:hover {color:#fff!important;}
+.group.w-full {width:100%!important; margin:0;}
+
+/* MAIN MENU DROPDOWN ITEMS */
+#sections--19292688056505__theme_header .header__dropdown a {color:#00095b!important;}
+#sections--19292688056505__theme_header a span svg path, #section--19292688056505__theme_header a:hover span svg path {color:#00095b; opacity:1;}
+
+/* HEADER SEARCH BAR */
+#sections--19292688056505__theme_header .color__border-input {border-color:#e6e6e6;}
+#sections--19292688056505__theme_header .color__bg-input {background-color:#fff;}
+#sections--19292688056505__theme_header .\!w-full {width:90%!important; margin:0 30% 0 5%;}
+nav button.btn--smaller.border__input.color__border-input.color__bg-input.\!border--input-padding.color__input.\!border__input--radius.flex.\!w-full.items-center.\!text-left {
+    background-color: #fff;
+}
+header.top-0 {top:50px!important;}
+
+/* MOBILE MENU */
+#theme__menu button.\!w-full {width:100%!important; margin:0!important;}
+
+/* MARQUEE */
+#shopify-section-sections--18200027267257__marquee_JGgXhM h3.type__heading-1 {text-transform:none!important;}
+#sections--19292688056505__text_P7AMHp {border-bottom-width:0!important;}
+#sections--19413395931321__text_P7AMHp.color__border-divider-1 {border-color:#00142e!important;}
+
+/* JS-PICTURE HEIGHT FIX */
+.js-picture {height:100%!important;}
+
+/* HOME PAGE ADJUSTMENTS */
+/* OTTO SLIDER CONTROLS */
+*.otto-slider__container {}
+*.otto-slider__dots {width:fit-content!important; padding:20px 50px!important; background:rgba(0,20,46,0.7)!important; max-width:500px; min-width:300px; margin:0 auto!important; border-radius:25px; bottom:63px; position:relative;}
+*.otto-slider__dot {width:35px!important; height:1px !important; margin:0 5px; background:#8C8C8C!important; border-radius:0!important; border:0!important; transform:none!important; transition:background .25s ease-in-out;}
+*.otto-slider__dot.active {background:rgba(255, 255, 255, 1)!important; border-radius:30px !important; height:3px !important; position:relative; bottom:1px;}
+*.otto-slider__arrow {top:85.6%!important; background:none!important; border-radius:0!important; z-index:10!important;}
+*.otto-slider__arrow[data-direction="prev"] {left:39.35%!important;}
+*.otto-slider__arrow[data-direction="next"] {right:39.35%!important;}
+*.otto-slider__arrow svg {stroke:#fff!important; stroke-width:2px;}
+
+/* COLLAGE CARD GRADIENT OVERLAY */
+collage-card__inner .collage-card__content {background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0), rgba(0,0,0,0.35))!important;}
+
+/* PRODUCT SLIDER*/
+#template--19292687892665__product_slider_kdWPM7 .shrink .items-center span:nth-child(1), #template--19292687892665__product_slider_kdWPM7 .shrink .items-center span:nth-child(2) {color:#1700f4; font-family:'Ford F-1 Medium', sans-serif;}
+.shrink .items-center span > s {font-family:'Ford F-1 Regular', sans-serif; padding-left:6px;}
+h3.type__body.type--base {color:#00095b; font-family:'Ford F-1 Medium', sans-serif;}
+.\!w-full {width:50%!important; margin:0 25%;}
+
+/* SLIDER */
+@media (hover:hover) and (pointer:fine){
+  .hover\:\!opacity-90:hover {opacity:1!important;}
+  .hover\:\!opacity-100:hover {opacity:1!important;}
+}
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-range:10%){
+    .motion-safe\:scroll-fadein-2-20 {animation-range:2% 10%;}
+  }
+}
+
+/* PDP ADJUSTMENTS */
+/*added by matt*/
+div#sizefox-container {
+    border-top: 1.25px solid transparent;
+    border-bottom: 1px solid #e8e8e8 !important;
+}
+#sizefox-container {
+    min-width: 90px;
+}
+.smartsize-button-text {
+    margin-top: 4px !important;
+    margin-right: 0 !important;
+}
+.css-3lgz5e {
+        justify-content: center !important;
+    }
+    #shopify-section-template--19413401927865__1638995507af787164 .flex.w-full.flex-col .px-4 {
+    padding-left: 15px !important;
+}
+button.pb-4.border-b-2.opacity-50.type--big.color__border-transparent {
+    font-family: ford f-1 !important;
+    font-size: 16px !important;
+}
+#product-price span:last-of-type {font-family:'Ford F-1 Regular', sans-serif; font-size:1rem;}
+#product-price span:first-child {color:#d50032;}
+#product-price {padding:3px 0 0 8px;}
+#product-price .msrp__label::before {content:"MSRP "; text-transform:uppercase; padding-left:15px; font-size:85.6%}
+.block p {color:rgba(0,153,0);}
+#template--25303403037037__1638995507af787164-product .color__bg-shade-3, #template--24832139460973__1638995507af787164-product .color__bg-shade-3, #template--25022072160621__1638995507af787164-product .color__bg-shade-3, #template--25022157226349__1638995507af787164-product .color__bg-shade-3, #template--25128107540845__1638995507af787164-product .color__bg-shade-3, #template--25022158111085__1638995507af787164-product .color__bg-shade-3 {background-color: var(--color__background-secondary);}
+
+/* HIDE SIZES ON PDP */
+div.flex.w-full.flex-col.gap-2:nth-child(3) {display:none;}
+
+/* PRODUCT BADGES */
+.product-badges span {text-transform:uppercase; font-size:0.7rem; letter-spacing:1px; font-family:'Ford F-1 Medium'; padding-top:3px;}
+.color__bg-yellow, .color__border-yellow {background-color:#F6CA0B;}
+.color__bg-silver, .color__border-silver {background-color:#E6EDf5;}
+.color__bg-orange, .color__border-orange {background-color:#faa105;}
+.color__bg-red, .color__border-red {background-color:red;}
+.color__bg-preorder {background-color:#ffe;}
+.color__border-preorder {border-color:#efcd25;}
+.color__bg-usa {background: linear-gradient(to bottom, red 0%, red 33.33%, blue 66.66%, blue 100%);}
+.color__bg-soldout {background-color:#fff;}
+.color__border-soldout {border-color:#d7293e;}
+.color__bg-soldout.color__red.color__border-soldout span {color:#d7292e; font-family:'Ford F-1 Bold';}
+
+
+/* PRODUCT IMAGE */
+#template--24832139460973__1638995507af787164-product .group.w-full, #template--25022157226349__1638995507af787164-product .group.w-full, #template--25022072160621__1638995507af787164-product .group.w-full {width:auto; margin:0 10%;}
+
+/* PRODUCT OPTIONS - SIZE SELECTION */
+#js-options-template--24832139460973__1638995507af787164-7899025998019 .btn--plain:focus, #js-options-template--24832139460973__1638995507af787164-7899027767491 .btn--plain:focus, #js-options-template--25022157226349__1638995507af787164-7899035304131 .btn--plain:focus, #js-options-template--25303403037037__1638995507af787164-7899044282563 .btn--plain:focus {color:#fff!important;}
+#template--24832139460973__1638995507af787164-product .flex.w-full.flex-col.gap-2, #template--25022157226349__1638995507af787164-product .flex.w-full.flex-col.gap-2, #template--25022072160621__1638995507af787164-product .flex.w-full.flex-col.gap-2 {margin-top:20px;}
+
+/* TABS */
+/* - selected 2 */
+.\!color__border-selected-2 {border-color: #066FEF!important; color:#066fef;}
+/*.btn--smaller {max-height:30px!important;}*/
+#product-text .pb-4 {padding-top:1rem;}
+
+/* NEW SIZE CHART */
+#size__chart {overflow: hidden; /*display:inline-block;*/ padding:2px 0; margin:0 0 24px; table-layout:auto; font-size:100%; font-family:'Ford Antenna Cond Light'; width:100%;}
+/*.rte table {width:100%!imporant; font-size:90%!important;}*/
+#size__chart td, #size__chart th {border: none; padding: 6px 8px; position: relative;}
+#size__chart th:first-child {padding:6px 18px 6px 6px!important;}
+/*.rte table td {padding:6px 20px;}*/
+#size__chart th {background-color:#e4e4e4; text-align:center; padding:6px; border:none; position:relative; text-transform:uppercase;}
+#size__chart th span {font-size:90%; font-weight:300; display:block; line-height:90%; text-transform:lowercase;}
+
+/* FILTER BAR */
+#js-desktopFilter .btn--plain:hover * {color:#fff!important;}
+#js-desktopFilter .z-10 {background-color:#fff!important;}
+#js-desktopFilter .color__bg-body {color:#fff; background-color:#066fef!important;}
+#js-desktopFilter .color__bg-body span svg path {background-color:#066fef!important; color:#fff!important;}
+#js-desktopFilter button.border__button--radius:hover {background-color:#066fef;}
+#js-desktopFilter button.border__button--radius:hover svg path {color:#fff!important;}
+[id^="template--"][id$="__grid"] > .sticky > .color__bg-body {background-color:#f9f9f9; border-bottom:solid 1px rgba(179,179, 179, 0.3);}
+#template--19576831770809__grid > .top-0 {top:50px!important;}
+#shopify-section-template--24832139428205__grid section.window--wide .snap-start a span svg path {color:#066fef!important;}
+.range-slider.color__bg-text {background-color:#066fef!important;}
+
+/*ROW*/
+/*#size__chart td:hover::before {background-color: #eee;	content: ""; height: 100%; left: -5000px; position: absolute; top: 0; width: 10000px;	z-index: -2; cursor:hand;}*/
+
+/*COLUMN*/
+/*#size__chart td:hover::after {background:rgba(6,111,239,0.25); content: ""; height: 10000px; left: 0; position: absolute; top: -5000px; width: 100%; z-index: -1; cursor:hand;}*/
+#size__chart th:first-child {text-align:left;}
+#size__chart td {text-align:center;}
+h4.sizechart {margin:.5rem 0 .5rem!important;}
+#size__chart td:hover {background-color:rgba(6,111,239,0.25);}
+
+/* NON-ND# PREORDER LABEL FOR PRODUCT DESCRIPTION BLOCK */
+.label__preorder {display: inline-block; background: #FFFFEE; border: solid 1px #EFCD25; color: #00095b; padding: 3px 9px; margin: 12px 0 12px 0; text-transform: uppercase; font-size: 90%;}
+.label__preorder::before {content:'PREORDER – SHIPS '}
+p.label__preorder-nd {display: inline-block; background: #FFFFEE; border: solid 1px #EFCD25; color: #00095b; padding: 9px 20px; margin:36px 0 0!important; font-family:'Ford F-1 Regular'; font-size:90%;}
+p.label__info {width:100%; text-align:left; display: inline-block; background:rgba(6,111,239,0.10); border: solid 1px #00095b; color: #00095b; padding: 9px 20px; margin:36px 0 0!important; font-family:'Ford F-1 Regular'; font-size:90%;}
+
+/* LOGO UPLOAD BLOCK */
+.logo-preview_input {margin-top:12px;}
+.instruction {font-family:'Ford F-1 Medium'; font-size:1.15rem; color:#fff; text-transform:uppercase; line-height:1; padding:14px 12px 0 54px;}
+.logoupload_step1, .logoupload_step2 {width:189px; height:60px; background:url(https://cdn.shopify.com/s/files/1/0551/4860/9721/files/step-1_arrow.png?v=1759522199)left center; margin:20px 0 0;}
+.logoupload_step2 {background:url(https://cdn.shopify.com/s/files/1/0551/4860/9721/files/step-2_arrow.png?v=1759522199)left center; margin:36px 0 0 0;}
+
+/* DISCOUNT TAG */
+.py-4 > .flex > .items-center, .flex-col > .p-1 > .items-center {background-color: red !important; border: none;}
+.py-4 > .flex > .items-center > span, .flex-col > .p-1 > .items-center > span {color: #fff; font-family: "Ford F-1 Regular"; font-size: var(--type__font-smaller);}
+
+/* FOOTER */
+footer {background-color:}
+
+/* COLLECTION PAGE */
+.border__input {border-top-width:1px; border-right-width:1px; border-bottom-width:1px; border-left-width:1px;}
+.color__border-input {border-color:#066fef;}
+.color__bg-input {background-color:rgba(6, 111, 239, 1);}
+.color__bg-input > .btn--plain {background-color:transparent!important;}
+.color__bg-input > .btn--plain svg path {color:#fff!important;}
+.color__bg-input:hover {background-color:rgba(6, 111, 239, 1); transition-timing-function: cubic-bezier(.4,0,.2,1); transition-duration:.5s;}
+.color__bg-input > .btn--plain:hover {background-color:transparent!important;}
+#template--24832139428205__grid .color__outline-divider_1 {outline-color:var(--color__border-divider-2)!important; background-color:rgba(167, 169, 172, 0.1)!important;}
+
+/* COLLECTION PAGE – LIST VIEW */
+
+/* PRODUCT SLIDER HP */
+#template--19292687892665__product_slider_kdWPM7 .border__input {border-top-width:1px; border-right-width:1px; border-bottom-width:1px; border-left-width:1px;}
+#template--19292687892665__product_slider_kdWPM7 .color__border-input {border-color:#066fef;}
+#template--19292687892665__product_slider_kdWPM7 .color__bg-input {background-color:rgba(6, 111, 239, 1);}
+#template--19292687892665__product_slider_kdWPM7 .color__bg-input > .btn--plain {background-color:transparent!important;}
+#template--19292687892665__product_slider_kdWPM7 .color__bg-input > .btn--plain svg path {color:#fff!important;}
+#template--19292687892665__product_slider_kdWPM7 .color__bg-input:hover {background-color:rgba(6, 111, 239, 1); transition-timing-function: cubic-bezier(.4,0,.2,1); transition-duration:.5s;}
+#template--19292687892665__product_slider_kdWPM7 .color__bg-input > .btn--plain:hover {background-color:transparent!important;}
+#template--19292687892665__product_slider_kdWPM7 .group.w-full {width:auto!important; margin:0;}
+#template--19292687892665__product_slider_kdWPM7 span.msrp__label::before, #template--19292687892665__product_slider_kdWPM7 span.msrp__label::before {content:"MSRP "; padding-left:15px; color:var(--color__text-light)!important;}
+#template--19292687892665__product_slider_kdWPM7 .msrp__label span {color:var(--color__text-light)!important;}
+
+/* SMARTSIZE APP BLOCK */
+/*#shopify-block-ATWdsNGl0UC8yOTF6c__smartsize_app_block_qaQTeA, #shopify-block-ASEh1aW1ZRjc0K0YyZ__smartsize_app_block_qaQTeA {width:18%; position:absolute; bottom:115px; right:0;}*/
+#sizefox-container {width:15%; float:right; margin-top:25px; padding-bottom:10px; border-bottom:solid 2px transparent;}
+#sizefox-container:hover {border-bottom:solid 2px #066fef;}
+.smartsize-button-text {font-family:'Ford F-1 Regular'!important; text-decoration:none!important; color:var(--color__text-light); opacity:.5;}
+.smartsize-button-text:focus {color:#066fef; text-decoration:underline!important; opacity:1;}
+.MuiBox-root.css-i81pqi img {background-color: #066fef; mix-blend-mode: darken;}
+.css-1uytk82.Mui-selected {color:#066fef!important;}
+.css-925wbd {color:#00095b;}
+.css-1axgayo div {color:#00095b;}
+@media (min-width: 600px) {
+  .css-1nrbkkg {height:auto !important;}
+  .MuiBox-root.css-i81pqi {justify-content:right!important;}
+}
+.smartsize-scale-bar-segment {background-color:#066fef;}
+
+/* RECOMMENDATIONS BLOCK */
+#template--25022072160621__1649436653425ff0fe > .flex.w-full.items-center.justify-between {width:auto!important; border:solid 1px red;}
+#template--24832139460973__1649436653425ff0fe .shrink .items-center span {color:#1700f4!important; font-family:'Ford F-1 Medium', sans-serif;}
+#template--24832139460973__1649436653425ff0fe .shrink .items-center .msrp__label span, #template--24832139460973__1649436653425ff0fe .shrink .items-center .msrp__label::before {color:var(--color__text-light)!important; font-family:'Ford F-1 Medium', sans-serif;}
+
+/* ASIDE CART DRAG DRAWER */
+.z-top {z-index:99955;}
+@media (min-width: 1024px) {
+    .lg\:max-w-\[400px\] {max-width: 550px!important;}
+    .lg\:min-w-\[400px\] {min-width: 550px!important;}
+}
+
+#mini-clear-container .clear-button {display: none;}
+#mini-clear-container .clear-checkbox:checked + .clear-button {display: initial;}
+/*#mini-clear-container form a.button {width: 100%; border: 1px solid #25282a; padding: .5rem 1.5rem; text-align: center; display: block; text-decoration: none; margin-top: 10px;}*/
+#mini-clear-container a.button:hover {border: 1px solid rgba(0,9,91,1); background-color:#00095b; color:#fff;}
+#mini-clear-container {/* margin-top: 10px; */ height: 0; /* height: auto; */ /*width: calc(100% - 34px);*/ font-size: 14px; /*position: absolute;*/ /*top: 50%;*/ margin-bottom: 15px; transform: translatey(-50%);}
+#mini-clear-container a.button {line-height:1.5; border: 1px solid rgba(0,9,91,.7); color:#00095b; text-align: center; display: block; text-decoration: none; margin-top: 0; width: 22%; padding: 3px 0; font-size: 14px; border-radius: 3px; position: absolute; top: 30px; right: 15px; text-transform: uppercase; font-family: 'Ford F-1 Regular'!important;}
+#mini-clear-container .clear-checkbox:checked + .clear-button {display: inline-flex;}
+#mini-clear-container form.text--small.mb-0.text--small {font-size: 14px;}
+
+/* GRID ORDERING */
+.shrink span:first-of-type {font-family:'Ford F-1 Medium';}
+.msrp__label {color:var(--color__text-light)!important; font-family: 'Ford F-1 Regular', sans-serif;}
+.msrp__label::before {content:"MSRP"; padding-left:15px; font-size:80%;}
+
+/* THANK YOU PAGE */
+._5uqybw0 ._1fragemn2 ._1fragem3c ._1fragem8w {color:green;}
+#shopify-section-sections--24832139657581__theme_header a:hover span svg path {color:#066fef;}
+
+/*LIFESTYLE DISPLAY PDP LINK BUTTONS*/
+.box {width: 95%; margin: 0; padding:0; text-align: left;}
+.pop__btn {display:block; padding: 10px; color: inherit; border-radius: 2px; text-decoration: none; cursor: pointer; transition: all 0.2s ease-out;}
+.pop__btn span {padding-right:12px;}
+.pop__btn:hover, .pop__btn:hover .fa-chevron-right {background: #066fef; color:#fff!important; text-decoration:none;}
+.pop__btn:hover .fa-chevron-right {background:transparent;}
+
+/* CHECKOUT */
+._1fragemuy, ._1fragemuz:hover {background-color:##FFFFEE; border: solid 1px #EFCD25;}
+
+/* ACCOUNTS */
+.customers-addresses .border--b-width.color__border-divider-1.flex.py-4:first-child {
+  display: none !important;
+}
+
+/* DISCOUNT NINJA */
+#limoniapps-discountninja-stickybar-wrapper {z-index:99900!important;}
+
+/* ALERT OVERLAY */
+.top-50 {top:50px!important;}
+.z-50 {z-index:99999;}
+
+/* CUSTOMER ACCOUNT */
+.order__num a {color:#00095b; opacity:1;}
+.order__num a:hover {color:#066fef; opacity:1;}
+
+/* REMOVE BACKGROUND MODAL */
+div:where(.swal2-container).swal2-top, div:where(.swal2-container).swal2-center, div:where(.swal2-container).swal2-bottom, .logo-preview_modal {z-index:99999!important;}

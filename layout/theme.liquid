@@ -1,0 +1,262 @@
+<!doctype html>
+<html
+  class="min-h-[100vh]"
+  lang="{{ request.locale.iso_code }}"
+  x-data="app()"
+  x-init="
+    updateCart(false, false);
+    handleSharedCart();
+    handleSharedDiscount();
+    initAnimationObserver();
+    initPopstate();
+    handleOpnedAccount();
+  "
+  @keydown.meta.k.window="openSearch()"
+  @cart:update-data.window="updateCart($event.detail.cart)"
+  @cart:open-drawer.window="cart_drawer = true"
+>
+  <head>
+
+<!-- GOOGLE TAG (gtag.js) --> 
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Z7N5HX43N8"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];   function gtag(){dataLayer.push(arguments);}   gtag('js', new Date());   gtag('config', 'G-Z7N5HX43N8');
+    </script>
+<!-- END GOOGLE TAG -->
+
+<!-- REQUIRES LOGIN -->
+{% comment %}
+
+    {% unless customer %}
+    {% if template contains 'customers' or request.path == "/challenge" %}
+        {% assign send_to_login = false %}
+      {% else %}
+        {% assign send_to_login = true %}
+    {% endif %}
+    {% endunless %}
+      {% if send_to_login %}
+        <meta content="0; url=/account/login" http-equiv="refresh" />
+        {% else %}
+
+{% endcomment %} 
+<!-- REQUIRES LOGIN -->
+
+
+
+    {% comment %} Meta {% endcomment %}
+    {% render 'theme__meta' %}
+
+    {% comment %} Preload {% endcomment %}
+    {% unless settings.type_header_font.system? and settings.type_body_font.system? %}
+      <link rel="preconnect" href="https://fonts.shopifycdn.com" crossorigin>
+    {% endunless %}
+
+    {% comment %} Assets {% endcomment %}
+    {% render 'theme__styles' %}
+    {% render 'assets' with 'styles.css', preload_stylesheet: true %}
+    {{ content_for_header }}
+    {{- 'styles-custom.css' | asset_url | stylesheet_tag: preload: true -}}
+    <link href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    {% comment %} Structured data {% endcomment %}
+    {% render 'theme__structured-data' %}
+    <!--<script src="{{ 'custom_NOT-USED.js' |  asset_url }}" defer></script>-->
+    {% unless request.path contains 'products' %}
+    <script src="{{ 'logo-preview.js' |  asset_url }}" defer></script>
+    {% endunless %}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1.24.min.js"></script>
+
+    <!-- CLARITY TRACKING CODE -->
+    <script type="text/javascript">
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window, document, "clarity", "script", "r10hqgs04c");
+    </script>
+    <!-- END OF CLARITY TRACKING CODE -->
+
+    <script>
+      // --- PATCH TO PREVENT THEME CRASH ---
+      console.log('--- CRASH PATCH APPLIED ---');
+      function onchangeofvariant() {
+        // This is a dummy function to prevent a 'not defined' error
+        // from the theme's main 'ford-dealer-custom...' script.
+        console.log('Dummy onchangeofvariant() called.');
+      }
+    </script>
+
+  </head>
+
+  <body
+    class="
+      animation-500--all min-h-[100vh] break-words
+      {{ template | handle }}
+    "
+    :class="
+      {
+        'overflow-hidden': !enable_body_scrolling
+      }
+    "
+    @scroll.window.throttle.100ms="
+      if(!Shopify.visualPreviewMode){
+        handleBodyScroll();
+      }
+    "
+  >
+    
+    {% liquid
+      assign is_approved_customer = false
+      if customer and settings.account_matching_tags == blank
+        assign is_approved_customer = true
+      endif
+      if customer.tags contains settings.account_matching_tags
+        assign is_approved_customer = true
+      endif
+      if settings.account_match_b2b and customer.b2b?
+        assign is_approved_customer = true
+      endif
+      if settings.account_enable_full_restriction == false
+        assign is_restricted = false
+      else
+        assign is_restricted = true
+      endif
+    %}
+
+    {% capture restricted_content %}
+      {% if 
+           template == 'customers/activate_account'
+        or template == 'customers/reset_password'
+        or template == 'customers/login'
+        or template == 'register'
+      %}
+        {{ content_for_layout }}
+      {% else %}
+        {% sections 'restricted-group' %}
+      {% endif %}
+    {% endcapture %}
+
+
+    {% capture default_content %}
+      {% section 'theme__account' %}
+      {% section 'theme__search' %}
+
+      {% comment %} Content and sidebar {% endcomment %}
+      <div class="flex">
+        {% section 'theme__menu' %}
+
+        <div
+          class="flex-grow"
+        >
+          {% comment %} Header {% endcomment %}
+          <header
+            class="
+              animation-1000 z-40
+              {{ settings.header_position }}
+              {% if settings.header_position == 'dynamic' %}sticky top-0 left-0 right-0{% endif %}
+              {% if settings.header_position == 'sticky' %}sticky top-50{% endif %}
+            "
+            {% if settings.header_position == 'dynamic' %}
+              :style="
+                is_scrolled ?
+                'pointer-events: none;' :
+                'pointer-events: auto;'
+              "
+            {% endif %}
+            :class="
+              {
+                '!z-10' : hide_header
+              }
+            "
+            x-ref="header"
+            x-init="              header_group_height = $refs.header.offsetHeight - 1;"
+          >
+            <div
+              class="animation-500"
+              {% if settings.header_position == 'dynamic' %}
+                :style="
+                  is_scrolled ?
+                  'transform: translateY(-2rem); opacity: 0; pointer-events: none;' :
+                  'transform: none; opacity: 1;'
+                "
+              {% endif %}
+            >
+              {% sections 'header-group' %}
+            </div>
+          </header>
+
+          {% comment %} Main Content {% endcomment %}
+          <main
+            id="root"
+            role="main"
+          >
+            {{ content_for_layout }}
+          </main>
+        </div>
+
+        {% section 'theme__cart' %}
+      </div>
+
+      {% comment %} Footer and overlays {% endcomment %}
+      {% sections 'footer-group' %}
+      {% sections 'overlay-group' %}
+
+      {% comment %} Overlays {% endcomment %}
+      {% render 'theme__quick-overlays' %}
+      {% render 'theme__localization-overlay' %}
+      {% render 'theme__audio-overlay' %}
+      {% render 'theme__alert-overlay' %}
+      {% render 'logo-preview-modal' %}
+    {% endcapture %}
+
+    {% comment %} Skip to content link {% endcomment %}
+    <a
+      class="btn btn--plain btn--small !absolute left-4 top-4 !z-[100] -translate-y-20 transform opacity-0 shadow-md focus:translate-y-0 focus:opacity-100"
+      href="#root"
+    >
+      {{ 'actions.skip_to_content' | t }}
+    </a>
+
+    {% if is_approved_customer %}
+      {{ default_content }}
+    {% else %}
+      {% if is_restricted %}
+        {{ restricted_content }}
+      {% else %}
+        {{ default_content }}
+      {% endif %}
+    {% endif %}
+
+<!-- ENDS REQUIRED LOGIN -->
+{% comment %}
+
+    {% endif %} 
+    
+{% endcomment %}
+<!-- ENDS REQUIRED LOGIN -->
+
+    {%- comment -%}
+      Create a global JavaScript map of item keys to their step quantities.
+      This makes the data available to both the cart page and the cart drawer.
+    {%- endcomment -%}
+    {%- capture step_quantities_map -%}
+      {
+        {%- for item in cart.items -%}
+          "{{ item.key }}": {{ item.variant.product.metafields.custom.step_quantity | default: 1 }}{%- unless forloop.last -%},{%- endunless -%}
+        {%- endfor -%}
+      }
+    {%- endcapture -%}
+
+    <script>
+      window.stepQuantities = {{ step_quantities_map | strip_newlines }};
+    </script>
+
+    {% comment %} Scripts {% endcomment %}
+    {% render 'assets' with 'main.js' %}
+    {% render 'theme__scripts' %}
+    <!--<script src="{{ 'custom-cart-logic.js' | asset_url }}" defer="defer"></script>-->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" defer></script>
+    {% render 'modal-fix-final-and-correct-v2' %}
+  </body>
+</html>
+
