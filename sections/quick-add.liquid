@@ -1,0 +1,224 @@
+<!-- sections/quick-add.liquid -->
+{% comment %}
+  Use section rendering API to load and inject quick-add form for product thumbnails.
+
+  Globals:
+  - color_background_overlay: {string} Sets the background color of the overlay.
+  - enable_animations: {boolean} Indicates if animations should be enabled.
+  - enable_quick_image: {boolean} Indicates if quick image should be enabled.
+  - product_card_enable_count: {boolean} Indicates if variant count should be displayed on thumbnails.
+  - product_card_enable_sku: {boolean} Indicates if SKU should be displayed on thumbnails.
+  - product_card_enable_vendor: {boolean} Indicates if vendor should be displayed on thumbnails.
+  - product_card_enable_type: {boolean} Indicates if product type should be displayed on thumbnails.
+
+  Recommendations:
+  - Use variant dropdown selectors for products that have lots of variant options.
+{% endcomment %}
+<style>
+  .quick-add-modal .quick-add-modal__slide {
+    width: 300px;
+    height: fit-content;
+  }
+  .quick-add-modal .quick-add-slider {
+    width: 300px;
+  }
+  .quick-add-flex-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+  }
+  .quick-add-modal .quick-add__slider--wrapper {
+    width: 300px;
+  }
+  .logo-preview-wrapper {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .quick-add-modal .img-preview_canvas {
+    width: 300px;
+    height: auto;
+  }
+</style>
+{% capture script_product %}
+  {% render 'script__product',
+    gallery_style: 'slider',
+    enable_default_selling_plan_widget: true,
+    enable_default_variant: false,
+  %}
+{% endcapture %}
+
+<section
+  class="quick-add-modal fixed inset-0 z-50 overflow-hidden "
+  aria-modal="true"
+  role="dialog"
+  x-data="
+    {
+      quick_add: true,
+      pos_y: 0,
+      dragging: false
+    }
+  "
+  @keyup.escape.window="
+    quick_add = false;
+    enable_body_scrolling = true;
+  "
+  x-show="quick_add"
+  x-cloak
+>
+  {% comment %} Overlay {% endcomment %}
+  <div
+    class="animation-200 absolute inset-0 h-full w-full backdrop-blur"
+    style="      background: {{ settings.color_background_overlay }};"
+    aria-hidden="true"
+    @click="
+      quick_add = false;
+      enable_body_scrolling = true;
+      hide_header = false;
+      reset_product_zindex = false;
+    "
+    x-show="quick_add"
+    {% if settings.enable_animations %}
+      x-transition:enter="animation-200"
+      x-transition:enter-start="opacity-0"
+      x-transition:enter-end="opacity-100"
+      x-transition:leave="animation-200"
+      x-transition:leave-start="opacity-100"
+      x-transition:leave-end="opacity-0"
+    {% endif %}
+    x-cloak
+  ></div>
+
+  {% comment %} Drawer {% endcomment %}
+  <div
+    class="
+      animation-200 outline--width color__outline-divider-1 color__bg-body
+      border--t-radius md:border--b-radius fixed bottom-0 left-0 right-0
+      flex max-h-[90svh]
+      w-screen
+      justify-end overflow-hidden md:bottom-0 md:left-0 md:right-0 md:top-auto md:m-auto md:max-h-[90svh]
+    "
+    :class="
+      [
+        dragging ? '' : 'animation-300'
+      ]
+    "
+    @touchend.window="
+      dragging = false;
+      start_y: 0,
+      pos_y = 0;
+    "
+    @touchstart="
+      dragging = true;
+      start_y = $event.touches[0].clientY;
+    "
+    @touchmove.window="
+      if (dragging) {
+        let deltaY = $event.touches[0].clientY - start_y;
+        if (deltaY > 0) {
+          pos_y = deltaY;
+          if (pos_y > window.innerHeight / 3) {
+            dragging = false;
+            pos_y = 1200;
+            quick_add = false;
+            enable_body_scrolling = true;
+          }
+        } else {
+          pos_y = 0;
+        }
+      }
+    "
+    :style="      'transform: translate(0px, ' + pos_y + 'px)'"
+    x-trap="quick_add"
+    x-show="quick_add"
+    {% if settings.enable_animations %}
+      x-transition:enter="animation-200 translate-y-full opacity-0"
+      x-transition:enter-start="animation-200 translate-y-full opacity-0"
+      x-transition:enter-end="animation-200 translate-y-0 opacity-100"
+      x-transition:leave="animation-200 translate-y-0 opacity-100"
+      x-transition:leave-start="animation-200 translate-y-0 opacity-100"
+      x-transition:leave-end="animation-200 translate-y-full opacity-0"
+    {% endif %}
+    x-cloak
+  >
+    {% comment %} Contents {% endcomment %}
+    <div class="w-screen">
+      <div class="color__bg-body color__text flex h-full flex-col overflow-y-auto overscroll-none">
+        <div
+          class="{% if product.tags contains 'LogoUpload' %}flex-wrapper{% endif %} h-full"
+          x-data="{{ script_product }}"
+            x-init="
+              attachStandardForm();
+              initProductForm();
+            "
+            @keyup.left.window="galleryScrollBack()"
+            @keyup.up.window="galleryScrollBack()"
+            @keyup.right.window="galleryScrollNext()"
+            @keyup.down.window="galleryScrollNext()"
+        >
+          {% comment %} Top bar {% endcomment %}
+          <section class="color__bg-body window--wide sticky top-0 z-10 hidden items-center justify-between p-4 md:flex">
+            <span></span>
+            <button
+              class="
+                btn
+                {{ settings.close_button_color }}
+              "
+              type="button"
+              title="{{ 'actions.close' | t }}"
+              @click="
+                quick_edit = false;
+                quick_add = false;
+                enable_body_scrolling = true;
+                hide_header = false;
+                reset_product_zindex = false;
+              "
+            >
+              {% if settings.close_button_content contains 'icon' %}
+                {% render 'component__icon', icon: 'x', size: '20' %}
+              {% endif %}
+              {% if settings.close_button_content contains 'text' %}
+                <span
+                  {% if settings.close_button_content contains 'icon' %}
+                    class="ml-1"
+                  {% endif %}
+                >
+                  {{ 'actions.close' | t }}
+                </span>
+              {% endif %}
+            </button>
+          </section>
+
+          {% comment %}
+            logo preview
+          {% endcomment %}
+          {% comment %}{% if product.tags contains "LogoUpload" %}
+            {% render 'logo-preview-modal' %}
+          {% endif %}{% endcomment %}
+          {% if product.tags contains "LogoUpload" %}
+            <div class="quick-add-flex-container">
+              {% render 'product__gallery-slider' %}
+              {% render 'logo-preview' %}
+            </div>
+          {% endif %}
+          {% comment %} Table {% endcomment %}
+          <div>
+          </div>
+          <div class="window--wide pb-4">
+            {% render 'component__product-row',
+              product: product,
+              show_see_more: true,
+              show_see_all: false,
+              show_details_button: false,
+              show_table: true,
+              enable_description: false
+            %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% comment %}{% if product.tags contains 'LogoUpload' %}
+  {% render 'modal-fix-final-and-correct-v2' %}
+{% endif %}{% endcomment %}

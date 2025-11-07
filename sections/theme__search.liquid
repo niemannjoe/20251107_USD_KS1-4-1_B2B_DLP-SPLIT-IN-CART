@@ -1,0 +1,645 @@
+<!-- sections/theme__search.liquid -->
+{% comment %}
+  This file is responsible for the rendering and functionality of the search section in a Shopify store. It includes the slide-out search drawer and handles the display of search results.
+
+  Globals:
+  - close_button_color: {string} Sets the color of the navigation button.
+  - close_button_content: {string} Determines the content of the navigation button (icon, text, or both).
+  - enable_search_author: {boolean} Indicates if author search is enabled.
+  - enable_search_body: {boolean} Indicates if body search is enabled.
+  - enable_search_type: {boolean} Indicates if product type search is enabled.
+  - enable_search_tag: {boolean} Indicates if tag search is enabled.
+  - enable_search_title: {boolean} Indicates if title search is enabled.
+  - enable_search_barcode: {boolean} Indicates if variants barcode search is enabled.
+  - enable_search_sku: {boolean} Indicates if variants SKU search is enabled.
+  - enable_search_variant_title: {boolean} Indicates if variants title search is enabled.
+  - enable_search_vendor: {boolean} Indicates if vendor search is enabled.
+  - layout_gap_size: {integer} Defines the gap size in the layout.
+  - enable_search_article: {boolean} Indicates if article search is enabled.
+  - enable_search_collection: {boolean} Indicates if collection search is enabled.
+  - enable_search_page: {boolean} Indicates if page search is enabled.
+  - enable_search_product: {boolean} Indicates if product search is enabled.
+  - enable_search_query: {boolean} Indicates if query search is enabled.
+{% endcomment %}
+
+{% comment %} Check if approved customer {% endcomment %}
+{% liquid
+  assign is_approved_customer = false
+  if customer and settings.account_matching_tags == blank
+    assign is_approved_customer = true
+  endif
+  if customer.tags contains settings.account_matching_tags
+    assign is_approved_customer = true
+  endif
+  if settings.account_match_b2b and customer.b2b?
+    assign is_approved_customer = true
+  endif
+%}
+
+{% capture search_content %}
+
+  {% comment %} Announcement bar {% endcomment %}
+  {% for block in section.blocks %}
+    {% if block.type == 'announcement' %}
+      <section class="{{ block.settings.color_scheme }}">
+        <div class="p-1">
+          <div class="flex w-full
+            {% if block.settings.layout_x_alignment == "center" %}
+              justify-center
+            {% elsif block.settings.layout_x_alignment == "right" %}
+              justify-end
+            {% endif %}">
+            <span class="rte type--smaller">{{ block.settings.content }}</span>
+          </div>
+        </div>
+      </section>
+    {% endif %}
+  {% endfor %}
+  
+  {% comment %} Drawer contents {% endcomment %}
+  <section 
+    class="
+      relative h-[inherit] overflow-y-auto overflow-x-hidden
+      {{ section.settings.main_color_scheme }}
+    "
+    x-data="{
+      params: {
+        author: {{ settings.enable_search_author }},
+        body: {{ settings.enable_search_body }},
+        product_type: {{ settings.enable_search_type }},
+        tag: {{ settings.enable_search_tag }},
+        title: {{ settings.enable_search_title }},
+        vendor: {{ settings.enable_search_vendor }},
+        variants: {
+          barcode: {{ settings.enable_search_barcode }},
+          sku: {{ settings.enable_search_sku }},
+          title: {{ settings.enable_search_variant_title }}
+        }
+      },
+      resources: {
+        article: {{ settings.enable_search_article }},
+        collection: {{ settings.enable_search_collection }},
+        page: {{ settings.enable_search_page }},
+        product: {{ settings.enable_search_product }},
+        query: {{ settings.enable_search_query }}
+      }
+    }">
+    <form 
+      action="{{ routes.search_url }}" 
+      method='get'
+      @submit.prevent="goToSelectedItem($el)">
+
+      {% liquid
+        assign resources = ""
+        if settings.enable_search_page
+        assign resources = resources | append: 'page' | append: ","
+        endif 
+        if settings.enable_search_article
+        assign resources = resources | append: 'article' | append: ","
+        endif 
+        if settings.enable_search_product
+        assign resources = resources | append: 'product' 
+        endif 
+      %}
+      <input type="hidden" name="type" value="{{ resources }}"> 
+
+      {% comment %} Search action {% endcomment %}
+      <div 
+        class="
+          border--b-width sticky top-0 z-10 w-full p-4
+          {{ section.settings.main_color_border }}
+          {{ section.settings.main_color_scheme }}
+        ">
+
+        {% comment %} Input field {% endcomment %}
+        <div 
+          class="relative">
+          <label 
+            class="sr-only"
+            for="search-field">
+            {{ 'labels.search' | t }}
+          </label>
+
+          {% comment %} Icon {% endcomment %}
+          <div 
+            class="pointer-events-none absolute left-4 top-0 flex h-full items-center opacity-75">
+            {% render 'component__icon', 
+              icon: 'search',
+              size: '20' %}
+          </div>
+
+          {% comment %} Input {% endcomment %}
+          <input 
+            id="search-field"
+            class="
+              color__text color__bg-overlay-1 !px-12
+              {{ section.settings.main_color_border }}
+            " 
+            type="text"
+            name="q" 
+            placeholder="{{ 'actions.search_placeholder' | t }}"
+            value="{{ search.terms | escape }}"
+            x-ref="searchInput"
+            @keyup.down="updateSelectedSearch(1)"
+            @keyup.up="updateSelectedSearch(-1)"
+            @keyup.enter.prevent="goToSelectedItem()"
+            @input.debounce="fetchAndUpdateSearch($event, params, resources)"
+          />
+          
+          {% comment %} Cancel {% endcomment %}
+          <div 
+            class="absolute right-4 top-0 flex h-full items-center">
+            <button 
+              class="btn btn--smaller btn--minimal !px-2"
+              title="{{ 'actions.cancel' | t }}"
+              type="button"
+              @click="
+                $refs.searchInput.value = '';
+                search_term = '';
+                search_items = '';
+                search_items_collections = '';
+                search_items_pages = '';
+                search_items_articles = '';
+                search_items_queries = '';
+                search_loading = false;
+              ">
+              {% render 'component__icon', 
+                icon: 'x',
+                size: '16' %}
+            </button>
+          </div>
+        
+        </div>
+
+        {% comment %} View all {% endcomment %}
+        <div
+          class="pt-4 " 
+          x-show="search_items.length != 0 && !search_loading"
+          x-cloak>
+          <button class="w-full text-left"
+            type="submit">
+            {{ 'actions.view_all' | t }} 
+          </button>
+        </div>
+
+        {% comment %} No results {% endcomment %}
+        <div
+          class="pt-4 "
+          x-show="
+            search_term.length > 0 &&
+            search_items.length == 0 &&
+            search_items_collections.length == 0 &&
+            search_items_pages.length == 0 &&
+            search_items_articles.length == 0 &&
+            search_items_queries.length == 0 &&
+            !search_loading"
+          x-cloak>
+          <p class="mb-0">{{ 'info.search_no_results' | t }}</p>
+        </div>
+              
+      </div>
+      
+      {% comment %} Loading indciator {% endcomment %}
+      <div 
+        class="px-4 py-4" 
+        x-show="search_loading" 
+        x-cloak>
+        <div class="btn--load btn--loading">
+          <div class="btn__content">{{ 'info.loading' | t }}</div>
+          <div class="btn__spinner">
+            {% render 'component__icon', 
+              icon: 'spinner', 
+              size: '24' %}
+          </div>
+        </div>
+      </div>
+      
+      {% comment %} Main content {% endcomment %}
+      <div class="">
+        
+        {% comment %} Search manual suggestions {% endcomment %}
+        {% unless section.settings.search_links == blank %}
+          <div 
+            x-show="search_term.length == 0 && !search_loading"
+            x-cloak>
+
+            <span 
+              class="type--smaller flex w-full px-4 py-4 pt-8 opacity-50">
+              {{ 'labels.top_searches' | t }}
+            </span>
+
+            {% for link in section.settings.search_links.links %}
+              <a 
+                class="hover:color__bg-shade-1 animation-100 flex w-full items-center gap-4 overflow-hidden text-ellipsis px-4 py-4 no-underline hover:opacity-100"
+                href="{{ link.url }}">
+                <span class="color__bg-overlay-1 border--radius flex h-8 w-8 items-center justify-center">
+                  {% render 'component__icon', 
+                    icon: 'search',
+                    size: '16' %}
+                </span>
+                {{ link.title }}
+              </a>
+            {% endfor %}
+          </div>
+        {% endunless %}
+        
+        {% comment %} Search results {% endcomment %}
+        <div 
+          x-show="search_term.length > 0 && !search_loading" 
+          x-cloak>
+          
+          {% comment %} Query suggestions {% endcomment %}
+          <div 
+            class="
+              border--b-width
+              {{ section.settings.main_color_border }}
+            "
+            x-show="search_items_queries.length !== 0"
+            x-cloak>
+            <template x-for="(item, index)  in search_items_queries">
+              <a 
+                class="hover:color__bg-shade-1 animation-100 flex w-full items-center gap-4 overflow-hidden text-ellipsis px-4 py-4 no-underline hover:opacity-100"
+                :class="{ 
+                  'underline color__bg-shade-1': index === search_focus_index, 
+                  'no-underline': index !== search_focus_index 
+                }"
+                :href="item.url">
+                <span class="color__bg-overlay-1 border--radius flex h-8 w-8 items-center justify-center">
+                  {% render 'component__icon', 
+                    icon: 'search',
+                    size: '16' %}
+                </span>
+                <span
+                  x-html="item.styled_text">
+                </span>
+              </a>
+            </template>
+          </div>
+          
+          {% comment %} Pages {% endcomment %}
+          <div 
+            class="
+              border--b-width
+              {{ section.settings.main_color_border }}
+            "
+            x-show="search_items_pages.length !== 0"
+            x-cloak>
+
+            <template x-for="(item, index) in search_items_pages" :key="index">
+              <a 
+                class="hover:color__bg-shade-1 animation-100 flex w-full items-center gap-4 overflow-hidden text-ellipsis px-4 py-4 no-underline hover:opacity-100"
+                :class="{ 
+                  'underline color__bg-shade-1': (index + search_items_queries.length) === search_focus_index, 
+                  'no-underline': (index + search_items_queries.length) !== search_focus_index 
+                }"
+                :href="item.url">
+                <span class="color__bg-overlay-1 border--radius flex h-8 w-8 items-center justify-center">
+                  {% render 'component__icon', 
+                    icon: 'page',
+                    size: '16' %}
+                </span>
+                <span
+                  x-html="item.title">
+                </span>
+              </a>
+            </template>
+          </div>
+
+          {% comment %} Articles {% endcomment %}
+          <div 
+            class="
+              border--b-width
+              {{ section.settings.main_color_border }}
+            "
+            x-show="search_items_articles.length !== 0"
+            x-cloak>
+            <template x-for="(item, index) in search_items_articles">
+              <a 
+                class="hover:color__bg-shade-1 animation-100 flex w-full items-center gap-4 overflow-hidden text-ellipsis px-4 py-4 no-underline hover:opacity-100"
+                :class="{ 
+                  'underline color__bg-shade-1': (index + search_items_queries.length + search_items_pages.length) === search_focus_index, 
+                  'no-underline': (index + search_items_queries.length + search_items_pages.length) !== search_focus_index 
+                }"
+                :href="item.url"
+                {% if is_approved_customer == false %}
+                  x-show="!item.tags.includes('{{ settings.account_hide_blog_tag }}')"
+                {% endif %}>
+                <span class="color__bg-overlay-1 border--radius flex h-8 w-8 items-center justify-center">
+                  {% render 'component__icon', 
+                    icon: 'page',
+                    size: '16' %}
+                </span>
+                <span
+                  x-html="item.title">
+                </span>
+              </a>
+            </template>
+          </div>
+
+          {% comment %} Collections {% endcomment %}
+          <div 
+            class="
+              border--b-width
+              {{ section.settings.main_color_border }}
+            "
+            x-show="search_items_collections.length !== 0"
+            x-cloak>
+            <template x-for="(item, index) in search_items_collections">
+              <a 
+                class="hover:color__bg-shade-1 animation-100 flex w-full items-center gap-4 overflow-hidden text-ellipsis px-4 py-4 no-underline hover:opacity-100"
+                :class="{ 
+                  'underline color__bg-shade-1': (index + search_items_queries.length + search_items_pages.length + search_items_articles.length) === search_focus_index, 
+                  'no-underline': (index + search_items_queries.length + search_items_pages.length + search_items_articles.length) !== search_focus_index 
+                }"
+                :href="item.url">
+                <span 
+                  class="color__bg-overlay-1 border--radius flex h-8 w-8 items-center justify-center overflow-hidden"
+                  x-show="item.featured_image && item.featured_image.url">
+                  <img 
+                    class="h-full w-full"
+                    width="64"
+                    height="64"
+                    loading="lazy"
+                    :src="item.featured_image && item.featured_image.url ? `${item.featured_image.url}&width=64` : ''" 
+                    :alt="`${item.title}`" />
+                </span>
+                <span 
+                  class="color__bg-overlay-1 border--radius flex h-8 w-8 items-center justify-center overflow-hidden"
+                  x-show="!item.featured_image || !item.featured_image.url">
+                  {% render 'component__icon', 
+                    icon: 'grid',
+                    size: '16' %}
+                </span>
+                <span
+                  x-html="item.title">
+                </span>
+              </a>
+            </template>
+          </div>
+          
+          {% comment %} Products {% endcomment %}
+          <div 
+            class="
+              border--b-width
+              {{ section.settings.main_color_border }}
+            "
+            x-show="search_items.length > 0"
+            x-cloak>
+            <template x-for="(item, index) in search_items">
+              <a 
+                class="hover:color__bg-shade-1 animation-100 flex w-full items-center gap-4 overflow-hidden text-ellipsis px-4 py-4 no-underline hover:opacity-100"
+                :class="{ 
+                  'underline color__bg-shade-1': (index + search_items_queries.length + search_items_pages.length + search_items_articles.length + search_items_collections.length) === search_focus_index, 
+                  'no-underline': (index + search_items_queries.length + search_items_pages.length + search_items_articles.length + search_items_collections.length) !== search_focus_index 
+                }"
+                :href="item.url"
+                {% if is_approved_customer == false %}
+                  x-show="!item.tags.includes('{{ settings.account_hide_product_tag }}')"
+                {% endif %}>
+                <span class="color__bg-overlay-1 border--radius flex h-8 w-8 items-center justify-center overflow-hidden">
+                  <img 
+                    class="h-full w-full"
+                    width="64"
+                    height="64"
+                    loading="lazy"
+                    :src="`${item.image}&width=64`" 
+                    :alt="`${item.title}`" 
+                  />
+                </span>
+                <div class="inline-flex justify-start">
+                  <span
+                    x-html="item.title">
+                  </span>
+                  <div 
+                    class="ml-1 flex grow items-start gap-1"
+                    x-show="item.tags && !item.tags.includes('{{ settings.account_hide_price_tag }}')">
+                    <span 
+                      class="type--base"
+                      x-html="Shopify.formatMoney(item.price)">
+                    </span>
+                    <span 
+                      class="type--base opacity-50"
+                      x-show="item.compare_at_price_max > item.price">
+                      <s 
+                        x-html="Shopify.formatMoney(item.compare_at_price_max)">
+                      </s>
+                    </span>
+                  </div> 
+                </div>  
+              </a>
+            </template>
+          </div>
+
+        </div>
+        
+      </div>
+
+    </form>
+  </section>
+
+{% endcapture %}
+
+{% render 'component__dragdrawer',
+  drawer_id: 'search_drawer',
+  mobile_pos: 'bottom',
+  desktop_pos: 'top',
+  enable_full_height: true,
+  enable_focus_trap: true,
+  content: search_content
+%}
+
+{% schema %}
+{
+  "name": "t:sections.theme_search.name",
+  "settings": [
+    {
+      "type": "header",
+      "content": "t:general.headers.navigation.content"
+    },
+    {
+      "type": "link_list",
+      "id": "search_links",
+      "label": "t:general.settings.search_recommendations.label",
+      "info": "t:general.settings.search_recommendations.info"
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.main_section.content"
+    },
+    {
+      "type": "select",
+      "id": "main_color_scheme",
+      "label": "t:general.settings.color_scheme.label",
+      "options": [
+        {
+          "value": "color__bg-body color__text",
+          "label": "t:general.settings.color_scheme.body.label"
+        },
+        {
+          "value": "color__bg-neutral color__text",
+          "label": "t:general.settings.color_scheme.neutral.label"
+        },
+        {
+          "value": "color__bg-overlay-1 color__text",
+          "label": "t:general.settings.color_scheme.accent_1.label"
+        },
+        {
+          "value": "color__bg-overlay-2 color__text",
+          "label": "t:general.settings.color_scheme.accent_2.label"
+        },
+        {
+          "value": "color__bg-overlay-3 color__text",
+          "label": "t:general.settings.color_scheme.accent_3.label"
+        },
+        {
+          "value": "color__bg-shade-1 color__text",
+          "label": "t:general.settings.color_scheme.shade_1.label"
+        },
+        {
+          "value": "color__bg-shade-2 color__text",
+          "label": "t:general.settings.color_scheme.shade_2.label"
+        },
+        {
+          "value": "color__bg-shade-3 color__text",
+          "label": "t:general.settings.color_scheme.shade_3.label"
+        },
+        {
+          "value": "color__bg-primary color__primary",
+          "label": "t:general.settings.color_scheme.primary.label"
+        },
+        {
+          "value": "color__bg-secondary color__secondary",
+          "label": "t:general.settings.color_scheme.secondary.label"
+        },
+        {
+          "value": "color__bg-tertiary color__tertiary",
+          "label": "t:general.settings.color_scheme.tertiary.label"
+        }
+      ],
+      "default": "color__bg-body color__text"
+    },
+    {
+      "type": "select",
+      "id": "main_color_border",
+      "label": "t:general.settings.color_border.label",
+      "options": [
+        {
+          "value": "color__border-divider-1",
+          "label": "t:general.settings.color_border.subtle.label"
+        },
+        {
+          "value": "color__border-selected-1",
+          "label": "t:general.settings.color_border.strong.label"
+        },
+        {
+          "value": "!color__border-transparent",
+          "label": "t:general.settings.color_border.none.label"
+        }
+      ],
+      "default": "color__border-divider-1"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "announcement",
+      "name": "t:sections.theme_search.blocks.announcement.name",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "header",
+          "content": "t:general.headers.content.content"
+        },
+        {
+          "type": "richtext",
+          "id": "content",
+          "label": "t:general.settings.content.label",
+          "default": "t:general.defaults.short_placeholder"
+        },
+        {
+          "type": "header",
+          "content": "t:general.headers.color.content"
+        },
+        {
+          "type": "select",
+          "id": "color_scheme",
+          "label": "t:general.settings.color_scheme.label",
+          "options": [
+            {
+              "value": "color__bg-body color__text",
+              "label": "t:general.settings.color_scheme.body.label"
+            },
+            {
+              "value": "color__bg-neutral color__text",
+              "label": "t:general.settings.color_scheme.neutral.label"
+            },
+            {
+              "value": "color__bg-overlay-1 color__text",
+              "label": "t:general.settings.color_scheme.accent_1.label"
+            },
+            {
+              "value": "color__bg-overlay-2 color__text",
+              "label": "t:general.settings.color_scheme.accent_2.label"
+            },
+            {
+              "value": "color__bg-overlay-3 color__text",
+              "label": "t:general.settings.color_scheme.accent_3.label"
+            },
+            {
+              "value": "color__bg-shade-1 color__text",
+              "label": "t:general.settings.color_scheme.shade_1.label"
+            },
+            {
+              "value": "color__bg-shade-2 color__text",
+              "label": "t:general.settings.color_scheme.shade_2.label"
+            },
+            {
+              "value": "color__bg-shade-3 color__text",
+              "label": "t:general.settings.color_scheme.shade_3.label"
+            },
+            {
+              "value": "color__bg-primary color__primary",
+              "label": "t:general.settings.color_scheme.primary.label"
+            },
+            {
+              "value": "color__bg-secondary color__secondary",
+              "label": "t:general.settings.color_scheme.secondary.label"
+            },
+            {
+              "value": "color__bg-tertiary color__tertiary",
+              "label": "t:general.settings.color_scheme.tertiary.label"
+            }
+          ],
+          "default": "color__bg-secondary color__secondary"
+        },
+        {
+          "type": "header",
+          "content": "t:general.headers.layout.content"
+        },
+        {
+          "type": "select",
+          "id": "layout_x_alignment",
+          "label": "t:general.settings.x_alignment.label",
+          "options": [
+            {
+              "value": "left",
+              "label": "t:general.settings.x_alignment.left.label"
+            },
+            {
+              "value": "center",
+              "label": "t:general.settings.x_alignment.center.label"
+            },
+            {
+              "value": "right",
+              "label": "t:general.settings.x_alignment.right.label"
+            }
+          ],
+          "default": "left"
+        }
+      ]
+    }
+  ],
+  "disabled_on": {
+    "groups": ["custom.overlay"]
+  }
+}
+{% endschema %}

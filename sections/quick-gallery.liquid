@@ -1,0 +1,29 @@
+<!-- sections/quick-gallery.liquid -->
+{% comment %} 
+  Use section rendering API to load and inject quick-gallery to show a product image gallery.
+
+  Recommendations:
+  - Use this snippet to display a fullscreen gallery of product images in a product detail page.
+  - Ensure that the product images are high resolution as they can be zoomed in.
+{% endcomment %}
+
+{% capture fullscreen_content %}
+  {% render 'gallery__fullscreen' %}
+{% endcapture %}
+
+<section 
+  x-data="{
+    fullscreen: true,
+    gallery_index: 0,
+    gallery_size: {{ product.media.size | minus: 1 }},
+    gallery_zoom: false,
+    {% for media in product.media %}
+      gallery_zoom_{{ forloop.index0 }}: false,
+    {% endfor %}
+  }">
+  {% render 'component__fullscreen', 
+    fullscreen_id: 'fullscreen',
+    content: fullscreen_content 
+  %}
+</section>
+

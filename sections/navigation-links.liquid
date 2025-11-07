@@ -1,0 +1,447 @@
+<!-- sections/navigation-links.liquid -->
+{% comment %}
+  Slideshow similar to instagram stories component.
+
+  Globals:
+  - x_margin: {string} Class string to set horizontal margin.
+
+  Recommendations:
+  - Use this to highlight key pages and navigation.
+{% endcomment %}
+
+{% assign slider_size = section.blocks.size | minus: 1 %}
+
+{% capture slides %}
+  {% for block in section.blocks %}
+    <div 
+      class="js-slider-item flex flex-none justify-center" 
+      style="
+        width:{{ section.settings.style_size }}px;
+      "
+      x-bind:data-slide="{{ forloop.index0 }}"
+      x-intersect:enter.half="index = {{ forloop.index0 }};">
+    
+      <div 
+        class="flex w-full ">
+        <a href="{{ block.settings.url }}"
+          class="flex flex-row flex-wrap content-start items-start overflow-hidden whitespace-normal text-center no-underline">
+          {% if block.settings.image == blank %}
+            <div 
+              class="aspect-h-1 aspect-w-1 relative mb-1 aspect-[1/1] overflow-hidden rounded-full object-cover"
+              style="
+                width:{{ section.settings.style_size }}px;
+              ">
+              {% case forloop.index %}
+                {% when 1 %}
+                  <div class="h-full w-full">
+                    {{ 'product-apparel-1' | placeholder_svg_tag: 'w-full h-full' }}
+                  </div>
+                {% when 2 %}
+                  <div class="h-full w-full">
+                    {{ 'product-apparel-2' | placeholder_svg_tag: 'w-full h-full' }}
+                  </div>
+                {% when 3 %}
+                  <div class="h-full w-full">
+                    {{ 'product-apparel-3' | placeholder_svg_tag: 'w-full h-full' }}
+                  </div>
+                {% when 4 %}
+                  <div class="h-full w-full">
+                    {{ 'collection-apparel-1' | placeholder_svg_tag: 'w-full h-full' }}
+                  </div>
+                {% when 5 %}
+                  <div class="h-full w-full">
+                    {{ 'collection-apparel-2' | placeholder_svg_tag: 'w-full h-full' }}
+                  </div>
+              {% endcase %}
+            </div>
+          {% else %}
+            <div 
+              class="mb-1 "
+              style="
+                width:{{ section.settings.style_size }}px;
+              ">
+              <div 
+                class="
+                  aspect-h-1 aspect-w-1 aspect-[1/1] overflow-hidden rounded-full object-cover
+                ">
+                {% render 'component__image', 
+                  image: block.settings.image,
+                  max_width: 512,
+                  container_class: 'h-full w-full',
+                  background_class: '',
+                  ratio_class: 'aspect-[1/1]',
+                  crop_class: 'object-cover',
+                  enable_lazy_load: true
+                %}
+              </div>
+            </div>
+          {% endif %}
+          <div 
+            class="w-full">
+            <p class="type--smaller mb-0 opacity-75">{{ block.settings.heading }}</p>
+          </div>
+        </a>
+      </div>
+      
+    </div>
+  {% endfor %}
+{% endcapture %}
+
+<section
+  id="{{ section.id }}"
+  class="
+    animation-1000
+    {{ section.settings.visibility }}
+    {{ section.settings.color_border }}
+    {{ section.settings.style_border }}
+    {{ section.settings.color_scheme }}
+  "
+>
+  <div
+    class="
+      {% if section.settings.enable_margin %}
+        {{ settings.x_margin }} !px-0
+      {% endif %}
+    "
+    style="
+      padding-top:{{ section.settings.spacing_top }}px;
+      padding-bottom:{{ section.settings.spacing_bottom }}px;
+    "
+  >
+    <div
+      class="flex flex-wrap"
+    >
+      <div
+        class="
+          w-full
+          {% unless section.settings.enable_margin %}
+            px-4
+          {% endunless %}
+        "
+      >
+        {% if section.settings.style_container == 'slider' %}
+          {% render 'component__slider',
+            container_class: '',
+            slider_size: slider_size,
+            slides: slides,
+            enable_arrows_over: false,
+            enable_scrollbar: true
+          %}
+        {% else %}
+          <div
+            class="
+              flex flex-row flex-wrap gap-x-2 gap-y-6
+              {{ section.settings.layout_x_alignment }}
+            "
+          >
+            {{ slides }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "t:sections.navigation_links.name",
+  "settings": [
+    {
+      "type": "header",
+      "content": "t:general.headers.spacing.content"
+    },
+    {
+      "type": "range",
+      "id": "spacing_top",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "label": "t:general.settings.top_spacing.label",
+      "default": 5
+    },
+    {
+      "type": "range",
+      "id": "spacing_bottom",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "unit": "px",
+      "label": "t:general.settings.bottom_spacing.label",
+      "default": 5
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.color.content"
+    },
+    {
+      "type": "select",
+      "id": "color_scheme",
+      "label": "t:general.settings.color_scheme.label",
+      "options": [
+        {
+          "value": "color__bg-body color__text",
+          "label": "t:general.settings.color_scheme.body.label"
+        },
+        {
+          "value": "color__bg-neutral color__neutral",
+          "label": "t:general.settings.color_scheme.neutral.label"
+        },
+        {
+          "value": "color__bg-overlay-1 color__text",
+          "label": "t:general.settings.color_scheme.accent_1.label"
+        },
+        {
+          "value": "color__bg-overlay-2 color__text",
+          "label": "t:general.settings.color_scheme.accent_2.label"
+        },
+        {
+          "value": "color__bg-overlay-3 color__text",
+          "label": "t:general.settings.color_scheme.accent_3.label"
+        },
+        {
+          "value": "color__bg-shade-1 color__text",
+          "label": "t:general.settings.color_scheme.shade_1.label"
+        },
+        {
+          "value": "color__bg-shade-2 color__text",
+          "label": "t:general.settings.color_scheme.shade_2.label"
+        },
+        {
+          "value": "color__bg-shade-3 color__text",
+          "label": "t:general.settings.color_scheme.shade_3.label"
+        },
+        {
+          "value": "color__bg-primary color__primary",
+          "label": "t:general.settings.color_scheme.primary.label"
+        },
+        {
+          "value": "color__bg-secondary color__secondary",
+          "label": "t:general.settings.color_scheme.secondary.label"
+        },
+        {
+          "value": "color__bg-tertiary color__tertiary",
+          "label": "t:general.settings.color_scheme.tertiary.label"
+        }
+      ],
+      "default": "color__bg-body color__text"
+    },
+    {
+      "type": "select",
+      "id": "color_border",
+      "label": "t:general.settings.color_border.label",
+      "options": [
+        {
+          "value": "color__border-divider-1",
+          "label": "t:general.settings.color_border.subtle.label"
+        },
+        {
+          "value": "color__border-selected-1",
+          "label": "t:general.settings.color_border.strong.label"
+        }
+      ],
+      "default": "color__border-divider-1"
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.style.content"
+    },
+    {
+      "type": "select",
+      "id": "style_border",
+      "label": "t:general.settings.border_position.label",
+      "options": [
+        {
+          "value": "",
+          "label": "t:general.settings.border_position.none.label"
+        },
+        {
+          "value": "border--t-width",
+          "label": "t:general.settings.border_position.top.label"
+        },
+        {
+          "value": "border--b-width",
+          "label": "t:general.settings.border_position.bottom.label"
+        },
+        {
+          "value": "border--b-width border--t-width",
+          "label": "t:general.settings.border_position.top_and_bottom.label"
+        }
+      ],
+      "default": "border--b-width"
+    },
+    {
+      "type": "select",
+      "id": "style_size",
+      "label": "t:general.settings.size.label",
+      "options": [
+        {
+          "value": "60",
+          "label": "t:general.settings.size.small.label"
+        },
+        {
+          "value": "100",
+          "label": "t:general.settings.size.normal.label"
+        },
+        {
+          "value": "140",
+          "label": "t:general.settings.size.large.label"
+        }
+      ],
+      "default": "60"
+    },
+    {
+      "type": "select",
+      "id": "style_container",
+      "label": "t:general.settings.container.label",
+      "options": [
+        {
+          "value": "slider",
+          "label": "t:general.settings.container.slider.label"
+        },
+        {
+          "value": "grid",
+          "label": "t:general.settings.container.grid.label"
+        }
+      ],
+      "default": "slider"
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.layout.content"
+    },
+    {
+      "type": "select",
+      "id": "layout_x_alignment",
+      "label": "t:general.settings.x_alignment.label",
+      "options": [
+        {
+          "value": "justify-start items-start",
+          "label": "t:general.settings.x_alignment.left.label"
+        },
+        {
+          "value": "justify-center items-start",
+          "label": "t:general.settings.x_alignment.center.label"
+        },
+        {
+          "value": "justify-end items-start",
+          "label": "t:general.settings.x_alignment.right.label"
+        }
+      ],
+      "default": "justify-start items-start"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_margin",
+      "label": "t:general.settings.enable_margin.label",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.display.content"
+    },
+    {
+      "type": "select",
+      "id": "visibility",
+      "label": "t:general.settings.visibility.label",
+      "options": [
+        {
+          "value": "",
+          "label": "t:general.settings.visibility.all.label"
+        },
+        {
+          "value": "md:hidden",
+          "label": "t:general.settings.visibility.mobile.label"
+        },
+        {
+          "value": "hidden md:block",
+          "label": "t:general.settings.visibility.desktop.label"
+        }
+      ],
+      "default": "md:hidden"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "link",
+      "name": "t:sections.navigation_links.blocks.link.name",
+      "limit": 20,
+      "settings": [
+        {
+          "type": "header",
+          "content": "t:general.headers.content.content"
+        },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "t:general.settings.image_256.label",
+          "info": "t:general.settings.image_256.info"
+        },
+        {
+          "type": "text",
+          "id": "heading",
+          "label": "t:general.settings.heading.label",
+          "default": "t:general.defaults.block_heading"
+        },
+        {
+          "type": "url",
+          "id": "url",
+          "label": "t:general.settings.url.label"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.navigation_links.name",
+      "settings": {
+        "spacing_top": 20,
+        "spacing_bottom": 20,
+        "color_scheme": "color__bg-body",
+        "color_border": "color__border-divider-1",
+        "style_border": "border--b-width",
+        "style_size": "100",
+        "style_container": "grid",
+        "layout_x_alignment": "justify-center items-start",
+        "enable_margin": true,
+        "visibility": ""
+      },
+      "blocks": [
+        {
+          "type": "link",
+          "settings": {
+            "heading": "Heading"
+          }
+        },
+        {
+          "type": "link",
+          "settings": {
+            "heading": "Heading"
+          }
+        },
+        {
+          "type": "link",
+          "settings": {
+            "heading": "Heading"
+          }
+        },
+        {
+          "type": "link",
+          "settings": {
+            "heading": "Heading"
+          }
+        },
+        {
+          "type": "link",
+          "settings": {
+            "heading": "Heading"
+          }
+        }
+      ]
+    }
+  ],
+  "disabled_on": {
+    "groups": ["custom.overlay"]
+  }
+}
+{% endschema %}

@@ -1,0 +1,1185 @@
+<!-- sections/theme__account.liquid -->
+{% comment %}
+  This file is responsible for the rendering and functionality of the account drawer.
+
+  Globals:
+  - close_button_content: {string} Determines the content of the navigation button (icon, text, or both).
+  - close_button_color: {string} Sets the color of the navigation button.
+  - layout_gap_size: {integer} Defines the gap size in the layout.
+  - enable_audio: {boolean} Indicates if audio is enabled.
+  - color_background_overlay: {string} Sets the color of the background overlay.
+  - enable_animations: {boolean} Indicates if animations are enabled.
+  - type_separator: {string} Sets the type of separator between text.
+  - cart_button_behavior: {string} Determines the behavior of the checkout button (checkout or view cart).
+{% endcomment %}
+
+{% comment %} Check if approved customer {% endcomment %}
+{% liquid
+  assign is_approved_customer = false
+  if customer and settings.account_matching_tags == blank
+    assign is_approved_customer = true
+  endif
+  if customer.tags contains settings.account_matching_tags
+    assign is_approved_customer = true
+  endif
+  if settings.account_match_b2b and customer.b2b?
+    assign is_approved_customer = true
+  endif
+
+  assign redirect_url = request.path | append: '?account'
+  if settings.account_redirect_url
+    assign redirect_url = settings.account_redirect_url | append: ''
+  endif
+  assign recover_redirect_url = '/account/login?recover'
+%}
+
+{% capture new_address_content %}
+  {% capture address_create_button %}
+    {{ 'actions.add_address' | t }}
+  {% endcapture %}
+
+  <section 
+    x-init="
+      if (window.location.search.includes('ad=2')) {
+        account_drawer = true;
+        selected_tab = 'addresses';
+      }
+    "
+    class="
+      border--b-width sticky top-0 z-20 hidden items-center justify-between p-4 md:flex
+      {{ section.settings.top_color_scheme }}
+      {{ section.settings.top_color_border }}
+    ">
+    <span class="flex items-center gap-2">
+      {{ 'labels.account' | t }}
+    </span>
+    <button class="btn btn--smaller
+      {{ settings.close_button_color }}"
+      title="{{ 'actions.close' | t }}"
+      @click="new_address_drawer = false;">
+      {% if settings.close_button_content contains 'icon' %}
+        {% render 'component__icon', icon: 'x', size: '20' %} 
+      {% endif %}
+      {% if settings.close_button_content contains 'text' %}
+        <span 
+          {% if settings.close_button_content contains 'icon' %}class="ml-1"{% endif %}>
+          {{ 'actions.close' | t }}
+        </span>
+      {% endif %}
+    </button>
+  </section>
+  <section 
+    class="
+      relative flex h-[inherit] flex-grow flex-col overflow-y-auto overflow-x-hidden
+      {{ section.settings.main_color_scheme }}
+    ">
+    {% comment %}{%
+      render 'addresses__form',
+      id: 'new_address_drawer',
+      action: customer.new_address,
+      cta: address_create_button
+    %}{% endcomment %}{% comment %}Removed add address button in account drawer -Matt{% endcomment %}
+  </section>
+{% endcapture %}
+
+{% capture content_blocks %}
+  {% for block in section.blocks %}
+    {% case block.type %}
+      {% when 'content' %}
+        <div 
+          class="
+            border--b-width p-4
+            {{ section.settings.main_color_border }}
+            {% if block.settings.visibility == 'logged_out' %}
+              {% if customer %}hidden{% endif %}
+            {% endif %}
+            {% if block.settings.visibility == 'logged_in_not_approved' %}
+              {% if customer == nil or is_approved_customer %}hidden{% endif %}
+            {% endif %}
+            {% if block.settings.visibility == 'logged_in_and_approved' %}
+              {% unless is_approved_customer %}hidden{% endunless %}
+               {% if customer == nil or is_approved_customer == false %}hidden{% endif %}
+            {% endif %}
+          ">
+          {% render 'component__content-item',
+            heading: block.settings.heading,
+            content: block.settings.content,
+            button_label: block.settings.button_label,
+            url: block.settings.url,
+            image: block.settings.image,
+            image_background: block.settings.image_background,
+            video: block.settings.video,
+            enable_autoplay: block.settings.enable_autoplay,
+            enable_mute_toggle: block.settings.enable_mute_toggle,
+            enable_loop: block.settings.enable_loop,
+            color_scheme: block.settings.color_scheme,
+            color_text: block.settings.color_text,
+            color_border: block.settings.color_border,
+            color_button: block.settings.color_button,
+            enable_gradient: block.settings.enable_gradient,
+            enable_padding: block.settings.enable_padding,
+            spacing_minimum_height: block.settings.spacing_minimum_height,
+            spacing_maximum_height: 300,
+            layout_y_alignment: block.settings.layout_y_alignment,
+            layout_x_alignment: block.settings.layout_x_alignment,
+            text_position: block.settings.text_position
+          %}
+        </div>
+    {% endcase %}
+  {% endfor %}
+{% endcapture %}
+
+{% capture account_content %}
+  <div 
+    class="
+      flex h-full flex-col
+      {{ section.settings.main_color_scheme }}
+    ">
+
+    {% comment %} Announcement bar {% endcomment %}
+    {% for block in section.blocks %}
+      {% if block.type == 'announcement' %}
+        <section class="{{ block.settings.color_scheme }}">
+          <div class="p-1">
+            <div class="flex w-full
+              {% if block.settings.layout_x_alignment == "center" %}
+                justify-center
+              {% elsif block.settings.layout_x_alignment == "right" %}
+                justify-end
+              {% endif %}">
+              <span class="rte type--smaller">{{ block.settings.content }}</span>
+            </div>
+          </div>
+        </section>
+      {% endif %}
+    {% endfor %}
+              
+    {% comment %} Top bar {% endcomment %}
+    <section 
+      class="
+        border--b-width sticky top-0 z-20 hidden items-center justify-between p-4 md:flex
+        {{ section.settings.top_color_scheme }}
+        {{ section.settings.top_color_border }}
+      ">
+      <span>
+        {{ 'labels.account' | t }}
+      </span>
+      <button class="btn btn--small
+        {{ settings.close_button_color }}"
+        title="{{ 'actions.close' | t }}"
+        @click="closeAccount()">
+        {% if settings.close_button_content contains 'icon' %}
+          {% render 'component__icon', icon: 'x', size: '20' %} 
+        {% endif %}
+        {% if settings.close_button_content contains 'text' %}
+          <span 
+            {% if settings.close_button_content contains 'icon' %}class="ml-1"{% endif %}>
+            {{ 'actions.close' | t }}
+          </span>
+        {% endif %}
+      </button>
+    </section>
+
+    {% comment %} Account details {% endcomment %}
+    {% if customer %}
+      <section 
+        class="
+          relative flex h-[inherit] flex-grow flex-col overflow-y-auto overflow-x-hidden
+          {{ section.settings.main_color_scheme }}
+        "
+        x-data="{
+          selected_tab: 'orders',
+        }">
+        
+        {% comment %} B2B {% endcomment %}
+        {% if customer.b2b? %}
+          <div class="px-4 pt-4">
+            <div class="color__bg-shade-2 flex items-center gap-2 p-4">
+              <div class="color__bg-shade-2 flex h-10 w-10 items-center justify-center rounded-full">
+                {{ customer.current_company.name | truncate: 1, '' | upcase }}
+              </div>
+              <div>
+                {{ customer.current_company.name }}
+                <div class="type--small opacity-50">
+                  {{ 'info.purchasing_for_location' | t: location: customer.current_location.name }}
+                </div>
+                <button
+                  class="type--small"
+                  @click="selected_tab = 'addresses';">
+                  {{ 'actions.change_location' | t }}
+                </button>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+        
+        {% comment %} Tabs {% endcomment %}
+        <nav 
+          class="
+            border--b-width color__border-divider-1 sticky top-0 z-10 flex flex-wrap
+            {{ section.settings.main_color_scheme }}
+          ">
+          <div class="relative w-full px-4 pt-6">
+            <div class="inline-flex w-full snap-x gap-6 overflow-x-auto scroll-smooth whitespace-nowrap">
+              <div class="flex flex-none snap-start justify-center">
+                <button
+                  class="type--big color__border-transparent border-b-2 pb-4 opacity-50"
+                  :class="{
+                    '!opacity-100 !color__border-selected-2' : selected_tab === 'orders'
+                  }"
+                  @click="selected_tab = 'orders';">
+                  {{ 'labels.orders' | t }}
+                </button>
+              </div>
+              <div class="flex flex-none snap-start justify-center">
+                <button
+                  class="type--big color__border-transparent border-b-2 pb-4 opacity-50"
+                  :class="{
+                    '!opacity-100 !color__border-selected-2' : selected_tab === 'addresses'
+                  }"
+                  @click="selected_tab = 'addresses';">
+                  {{ 'labels.addresses' | t }}
+                </button>
+              </div>
+              <div class="flex flex-none snap-start justify-center">
+                <button
+                  class="type--big color__border-transparent border-b-2 pb-4 opacity-50"
+                  :class="{
+                    '!opacity-100 !color__border-selected-2' : selected_tab === 'account'
+                  }"
+                  @click="selected_tab = 'account';">
+                  {{ 'labels.profile' | t }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        {% comment %} Orders {% endcomment %}
+        <div
+          x-show="selected_tab === 'orders'"
+          x-cloak>
+
+          {% for order in customer.orders limit: 10 %}              
+            {% render 'component__order-item', 
+              order: order,
+              container_class: 'px-4'
+            %}
+          {% endfor %}
+
+          {%  if customer.orders.size > 10 %}
+            <div class="border--b-width color__border-divider-1 flex p-2">
+              <a 
+                class="hover:color__bg-shade-1 w-full p-2 text-left no-underline" 
+                href="{{ routes.account_url }}">{{ 'actions.view_all' | t }} ({{ customer.orders.size }})
+              </a>
+            </div>
+          {% endif %}
+
+        </div>  
+        
+        {% comment %} Addresses {% endcomment %}
+        <div
+          x-data="{ 
+            new_address_drawer: false
+          }"
+          x-show="selected_tab === 'addresses'"
+          x-cloak>
+
+          {% if customer.b2b? %}
+            {% for location in customer.company_available_locations %}
+              {% render 'component__address-item',
+                address: location.shipping_address,
+                location: location,
+                container_class: 'px-4',
+                enable_b2b: true
+              %}
+            {% endfor %}
+          {% else %}
+            {% for address in customer.addresses limit: 10 %}
+              {% render 'component__address-item',
+                address: address,
+                container_class: 'px-4'
+              %}
+            {% endfor %}
+          {% endif %}
+
+          {% render 'component__dragdrawer', 
+            drawer_id: 'new_address_drawer',
+            desktop_pos: 'right',
+            mobile_pos: 'bottom',
+            enable_full_height: true,
+            enable_focus_trap: true,
+            content: new_address_content 
+          %}
+          {% unless customer.b2b? %}
+            <div class="border--b-width color__border-divider-1 flex p-2">
+              <button 
+                class="hover:color__bg-shade-1 w-full p-2 text-left no-underline" 
+                @click="new_address_drawer = true;">{{ 'actions.add_address' | t }}
+              </button>
+            </div>
+          {% endunless %}
+          
+          {%  if customer.addresses.size > 10 %}
+            <div class="border--b-width color__border-divider-1 flex p-2">
+              <a 
+                class="hover:color__bg-shade-1 w-full p-2 text-left no-underline" 
+                href="{{ routes.account_addresses_url }}">{{ 'actions.view_all' | t }} ({{ customer.addresses.size }})
+              </a>
+            </div>
+          {% endif %}
+
+        </div>  
+
+        {% comment %} Account {% endcomment %}
+        <div
+          x-show="selected_tab === 'account'"
+          x-cloak>
+          
+          <div class="border--b-width color__border-divider-1 flex items-center gap-2 p-4">
+            <div class="color__bg-shade-2 flex h-10 w-10 items-center justify-center rounded-full">
+              {{ customer.first_name | truncate: 1, '' | upcase }}
+            </div>
+            <div>
+              {{ customer.first_name }} {{ customer.last_name }}
+              <div class="type--small opacity-50">
+                {{ customer.email }}
+              </div>
+            </div>
+          </div>
+          <div class="border--b-width color__border-divider-1 flex p-2">
+            <a 
+              class="hover:color__bg-shade-1 w-full p-2 text-left no-underline"
+              href="{{ routes.account_logout_url }}" >{{ 'actions.log_out' | t }}</a>
+          </div>
+
+        </div>  
+        
+        {{ content_blocks }}
+        
+      </section>
+
+    {% comment %} Login forms {% endcomment %}
+    {% else %}
+      <section 
+        class="relative flex h-[inherit] flex-grow flex-col overflow-y-auto overflow-x-hidden">
+
+        {{ content_blocks }}
+        
+        <div 
+          class="p-4"
+          x-data="{ tab: window.location.hash === '#recover' ? 'recover' : 'login' }">
+          
+          <div 
+            x-show="tab === 'recover'"
+            x-cloak>
+
+            {% assign form_id = section.id | append: '-recover' %}
+            {% form 'recover_customer_password', id: form_id, class: 'flex flex-col gap-4 items-start w-full', return_to: recover_redirect_url %}
+
+              {% assign recover_success = form.posted_successfully? %}
+
+              {%- if recover_success == true -%}
+                <div class="color__bg-shade-1 type--small border--radius p-2">
+                  {{ 'info.recover_success' | t }}
+                </div>
+              {%- endif -%}
+
+              {% if form.errors %}
+                <div class="color__bg-shade-1 type--small border--radius p-2">
+                  {{ form.errors | default_errors }}
+                </div>
+              {% endif %}
+      
+              <div class="w-full">
+                <label for="drawer_recover_email">{{ 'labels.email' | t }}</label><br/>
+                <input 
+                  id="drawer_recover_email" 
+                  type="email" 
+                  name="email"
+                  placeholder="{{ 'actions.email_placeholder' | t }}" />
+              </div>
+      
+              <button type="submit" class="btn">
+                {{ 'actions.reset_password' | t }}
+              </button>
+      
+              <div class="border--t-width color__border-divider-1 w-full pt-4">
+                <button type="button" class="btn btn--plain"
+                  @click.prevent="tab = 'login';">
+                  {{ 'actions.log_in' | t }}
+                </button>
+              </div>
+              
+            {% endform %}
+          </div>
+
+          <div
+            class="flex w-full flex-col items-start gap-4"
+            x-show="tab === 'login'">
+
+            {% assign form_id = section.id | append: '-login' %}
+            {% form 'customer_login', id: form_id, class: 'flex flex-col gap-4 items-start w-full', return_to: redirect_url %}
+
+              {%- if recover_success == true -%}
+                <div class="color__bg-shade-1 type--small border--radius p-2">
+                  {{ 'info.recover_success' | t }}
+                </div>
+              {%- endif -%}
+
+              {% if form.errors %}
+                <div class="color__bg-shade-1 type--small border--radius p-2">
+                  {{ form.errors | default_errors }}
+                </div>
+              {% endif %}
+              
+              <div class="w-full">
+                <label for="drawer_login_customer_email">{{ 'labels.email' | t }}</label><br/>
+                <input 
+                  id="drawer_login_customer_email" 
+                  type="email" 
+                  name="customer[email]" 
+                  placeholder="{{ 'actions.email_placeholder' | t }}" />
+              </div>
+
+              <div class="w-full">
+                <label for="drawer_login_customer_password">{{ 'labels.password' | t }}</label><br/>
+                <input 
+                  id="drawer_login_customer_password" 
+                  type="password" 
+                  name="customer[password]" 
+                  autocomplete
+                  placeholder="{{ 'actions.enter_password' | t }}" />
+              </div>
+      
+              <button type="submit" class="btn">
+                {{ 'actions.log_in' | t }}
+              </button>
+      
+              <div class="border--t-width color__border-divider-1 flex w-full flex-col gap-4 pt-4">
+                <p>{{ 'info.dont_have_account' | t }}</p>
+                <div class="flex gap-4">
+                  <button 
+                    class="btn btn--plain"
+                    type="button" 
+                    @click="tab = 'recover';">
+                    {{ 'actions.forgot_password' | t }}
+                  </button>
+                  <button 
+                    class="btn btn--plain"
+                    type="button" 
+                    @click="tab = 'register';">
+                    {{ 'actions.sign_up' | t }}
+                  </button>
+                </div>
+              </div>
+      
+
+            {% endform %}
+
+            {% if settings.account_enable_shop_sign_in %}
+              <div class="border--t-width color__border-divider-1 flex w-full flex-col gap-4 pt-4">
+                <p>{{ 'info.shop_sign_in' | t }}</p>  
+                {{ shop | login_button }}
+              </div>
+            {% endif %}
+          </div>
+
+          <div 
+            x-show="tab === 'register'"
+            x-cloak>
+
+            {% assign form_id = section.id | append: '-signup' %}
+            {% form 'create_customer', id: form_id, class: 'flex flex-col gap-4 items-start w-full', return_to: redirect_url %}
+
+              {%- if recover_success == true -%}
+                <div class="color__bg-shade-1 type--small border--radius p-2">
+                  {{ 'info.recover_success' | t }}
+                </div>
+              {%- endif -%}
+              
+              {% if form.errors %}
+                <div class="color__bg-shade-1 type--small border--radius p-2">
+                  {{ form.errors | default_errors }}
+                </div>
+              {% endif %}
+      
+              <div class="w-full">
+                <label 
+                  for="drawer_signup_first_name">{{ 'labels.name' | t }}</label><br/>
+                <input 
+                  id="drawer_signup_first_name" 
+                  required 
+                  type="text" 
+                  name="customer[first_name]"
+                  value=""
+                  placeholder="{{ 'actions.name_placeholder' | t }}" />
+              </div>
+
+              <div class="w-full">
+                <label 
+                  for="drawer_signup_customer_email">{{ 'labels.email' | t }}</label><br/>
+                <input 
+                  id="drawer_signup_customer_email" 
+                  required
+                  type="email" 
+                  name="customer[email]" 
+                  placeholder="{{ 'actions.email_placeholder' | t }}" />
+              </div>
+      
+              <div class="w-full">
+                <label 
+                  for="drawer_signup_customer_password">{{ 'labels.password' | t }}</label><br/>
+                <input 
+                  id="drawer_signup_customer_password"
+                  required
+                  type="password"
+                  name="customer[password]"
+                  autocomplete
+                  placeholder="{{ 'actions.enter_password' | t }}"/>
+              </div>
+              
+              <button type="submit" class="btn">
+                {{ 'actions.sign_up' | t }}
+              </button>
+      
+              <div class="border--t-width color__border-divider-1 flex w-full flex-col gap-4 pt-4">
+                <p>{{ 'info.already_have_account' | t }}</p>
+                <div class="flex gap-4">
+                  <button 
+                    class="btn btn--plain"
+                    type="button" 
+                    @click="tab = 'recover';">
+                    {{ 'actions.forgot_password' | t }}
+                  </button>
+                  <button 
+                    class="btn btn--plain"
+                    type="button" 
+                    @click="tab = 'login';">
+                    {{ 'actions.log_in' | t }}
+                  </button>
+                </div>
+              </div>
+                            
+            {% endform %}
+          </div>
+
+        </div>
+      </section>
+      
+    {% endif %}
+
+  </div>
+{% endcapture %}
+
+{% comment %} Account {% endcomment %}
+<section
+  id="{{ section.id }}"
+>
+  {% render 'component__dragdrawer',
+    drawer_id: 'account_drawer',
+    mobile_pos: 'bottom',
+    desktop_pos: 'right',
+    enable_full_height: true,
+    enable_focus_trap: true,
+    content: account_content
+  %}
+</section>
+
+{% schema %}
+{
+  "name": "t:sections.theme_account.name",
+  "settings": [
+    {
+      "type": "header",
+      "content": "t:general.headers.top_bar.content"
+    },
+    {
+      "type": "select",
+      "id": "top_color_scheme",
+      "label": "t:general.settings.color_scheme.label",
+      "options": [
+        {
+          "value": "color__bg-body color__text",
+          "label": "t:general.settings.color_scheme.body.label"
+        },
+        {
+          "value": "color__bg-neutral color__text",
+          "label": "t:general.settings.color_scheme.neutral.label"
+        },
+        {
+          "value": "color__bg-overlay-1 color__text",
+          "label": "t:general.settings.color_scheme.accent_1.label"
+        },
+        {
+          "value": "color__bg-overlay-2 color__text",
+          "label": "t:general.settings.color_scheme.accent_2.label"
+        },
+        {
+          "value": "color__bg-overlay-3 color__text",
+          "label": "t:general.settings.color_scheme.accent_3.label"
+        },
+        {
+          "value": "color__bg-shade-1 color__text",
+          "label": "t:general.settings.color_scheme.shade_1.label"
+        },
+        {
+          "value": "color__bg-shade-2 color__text",
+          "label": "t:general.settings.color_scheme.shade_2.label"
+        },
+        {
+          "value": "color__bg-shade-3 color__text",
+          "label": "t:general.settings.color_scheme.shade_3.label"
+        },
+        {
+          "value": "color__bg-primary color__primary",
+          "label": "t:general.settings.color_scheme.primary.label"
+        },
+        {
+          "value": "color__bg-secondary color__secondary",
+          "label": "t:general.settings.color_scheme.secondary.label"
+        },
+        {
+          "value": "color__bg-tertiary color__tertiary",
+          "label": "t:general.settings.color_scheme.tertiary.label"
+        },
+        {
+          "value": "!color__bg-transparent",
+          "label": "t:general.settings.color_scheme.transparent.label"
+        }
+      ],
+      "default": "color__bg-body color__text"
+    },
+    {
+      "type": "select",
+      "id": "top_color_border",
+      "label": "t:general.settings.color_border.label",
+      "options": [
+        {
+          "value": "color__border-divider-1",
+          "label": "t:general.settings.color_border.subtle.label"
+        },
+        {
+          "value": "color__border-selected-1",
+          "label": "t:general.settings.color_border.strong.label"
+        },
+        {
+          "value": "!color__border-transparent",
+          "label": "t:general.settings.color_border.none.label"
+        }
+      ],
+      "default": "color__border-divider-1"
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.main_section.content"
+    },
+    {
+      "type": "select",
+      "id": "main_color_scheme",
+      "label": "t:general.settings.color_scheme.label",
+      "options": [
+        {
+          "value": "color__bg-body color__text",
+          "label": "t:general.settings.color_scheme.body.label"
+        },
+        {
+          "value": "color__bg-neutral color__text",
+          "label": "t:general.settings.color_scheme.neutral.label"
+        },
+        {
+          "value": "color__bg-overlay-1 color__text",
+          "label": "t:general.settings.color_scheme.accent_1.label"
+        },
+        {
+          "value": "color__bg-overlay-2 color__text",
+          "label": "t:general.settings.color_scheme.accent_2.label"
+        },
+        {
+          "value": "color__bg-overlay-3 color__text",
+          "label": "t:general.settings.color_scheme.accent_3.label"
+        },
+        {
+          "value": "color__bg-shade-1 color__text",
+          "label": "t:general.settings.color_scheme.shade_1.label"
+        },
+        {
+          "value": "color__bg-shade-2 color__text",
+          "label": "t:general.settings.color_scheme.shade_2.label"
+        },
+        {
+          "value": "color__bg-shade-3 color__text",
+          "label": "t:general.settings.color_scheme.shade_3.label"
+        },
+        {
+          "value": "color__bg-primary color__primary",
+          "label": "t:general.settings.color_scheme.primary.label"
+        },
+        {
+          "value": "color__bg-secondary color__secondary",
+          "label": "t:general.settings.color_scheme.secondary.label"
+        },
+        {
+          "value": "color__bg-tertiary color__tertiary",
+          "label": "t:general.settings.color_scheme.tertiary.label"
+        },
+        {
+          "value": "!color__bg-transparent",
+          "label": "t:general.settings.color_scheme.transparent.label"
+        }
+      ],
+      "default": "color__bg-body color__text"
+    },
+    {
+      "type": "select",
+      "id": "main_color_border",
+      "label": "t:general.settings.color_border.label",
+      "options": [
+        {
+          "value": "color__border-divider-1",
+          "label": "t:general.settings.color_border.subtle.label"
+        },
+        {
+          "value": "color__border-selected-1",
+          "label": "t:general.settings.color_border.strong.label"
+        },
+        {
+          "value": "!color__border-transparent",
+          "label": "t:general.settings.color_border.none.label"
+        }
+      ],
+      "default": "color__border-divider-1"
+    }
+  ],
+  "blocks": [
+    {
+      "type": "announcement",
+      "name": "t:sections.theme_menu.blocks.announcement.name",
+      "limit": 1,
+      "settings": [
+        {
+          "type": "header",
+          "content": "t:general.headers.content.content"
+        },
+        {
+          "type": "richtext",
+          "id": "content",
+          "label": "t:general.settings.content.label",
+          "default": "t:general.defaults.short_placeholder"
+        },
+        {
+          "type": "header",
+          "content": "t:general.headers.color.content"
+        },
+        {
+          "type": "select",
+          "id": "color_scheme",
+          "label": "t:general.settings.color_scheme.label",
+          "options": [
+            {
+              "value": "color__bg-body color__text",
+              "label": "t:general.settings.color_scheme.body.label"
+            },
+            {
+              "value": "color__bg-neutral color__text",
+              "label": "t:general.settings.color_scheme.neutral.label"
+            },
+            {
+              "value": "color__bg-overlay-1 color__text",
+              "label": "t:general.settings.color_scheme.accent_1.label"
+            },
+            {
+              "value": "color__bg-overlay-2 color__text",
+              "label": "t:general.settings.color_scheme.accent_2.label"
+            },
+            {
+              "value": "color__bg-overlay-3 color__text",
+              "label": "t:general.settings.color_scheme.accent_3.label"
+            },
+            {
+              "value": "color__bg-shade-1 color__text",
+              "label": "t:general.settings.color_scheme.shade_1.label"
+            },
+            {
+              "value": "color__bg-shade-2 color__text",
+              "label": "t:general.settings.color_scheme.shade_2.label"
+            },
+            {
+              "value": "color__bg-shade-3 color__text",
+              "label": "t:general.settings.color_scheme.shade_3.label"
+            },
+            {
+              "value": "color__bg-primary color__primary",
+              "label": "t:general.settings.color_scheme.primary.label"
+            },
+            {
+              "value": "color__bg-secondary color__secondary",
+              "label": "t:general.settings.color_scheme.secondary.label"
+            },
+            {
+              "value": "color__bg-tertiary color__tertiary",
+              "label": "t:general.settings.color_scheme.tertiary.label"
+            }
+          ],
+          "default": "color__bg-secondary color__secondary"
+        },
+        {
+          "type": "header",
+          "content": "t:general.headers.layout.content"
+        },
+        {
+          "type": "select",
+          "id": "layout_x_alignment",
+          "label": "t:general.settings.x_alignment.label",
+          "options": [
+            {
+              "value": "left",
+              "label": "t:general.settings.x_alignment.left.label"
+            },
+            {
+              "value": "center",
+              "label": "t:general.settings.x_alignment.center.label"
+            },
+            {
+              "value": "right",
+              "label": "t:general.settings.x_alignment.right.label"
+            }
+          ],
+          "default": "left"
+        }
+      ]
+    },
+    {
+      "type": "content",
+      "name": "t:sections.theme_menu.blocks.content.name",
+      "limit": 15,
+      "settings": [
+        {
+          "type": "select",
+          "id": "visibility",
+          "label": "t:general.settings.visibility.label",
+          "options": [
+            {
+              "value": "always",
+              "label": "t:general.settings.visibility.always.label"
+            },
+            {
+              "value": "logged_out",
+              "label": "t:general.settings.visibility.logged_out.label"
+            },
+            {
+              "value": "logged_in_not_approved",
+              "label": "t:general.settings.visibility.logged_in_not_approved.label"
+            },
+            {
+              "value": "logged_in_and_approved",
+              "label": "t:general.settings.visibility.logged_in_and_approved.label"
+            }
+          ],
+          "default": "always"
+        },
+        {
+          "type": "header",
+          "content": "t:general.headers.content.content"
+        },
+        {
+          "type": "text",
+          "id": "heading",
+          "label": "t:general.settings.heading.label",
+          "default": "t:general.defaults.block_heading"
+        },
+        {
+          "type": "richtext",
+          "id": "content",
+          "label": "t:general.settings.content.label",
+          "default": "t:general.defaults.standard_placeholder"
+        },
+        {
+          "type": "text",
+          "id": "button_label",
+          "label": "t:general.settings.button_label.label",
+          "default": "t:general.defaults.button"
+        },
+        {
+          "type": "url",
+          "id": "url",
+          "label": "t:general.settings.url.label",
+          "info": "t:general.settings.url.info",
+          "default": "/collections/all"
+        },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "t:general.settings.image.label"
+        },
+        {
+          "type": "image_picker",
+          "id": "image_background",
+          "label": "t:general.settings.image_background.label"
+        },
+        {
+          "type": "video",
+          "id": "video",
+          "label": "t:general.settings.video.label"
+        },
+        {
+          "type": "checkbox",
+          "id": "enable_autoplay",
+          "label": "t:general.settings.enable_video_autoplay.label",
+          "default": true
+        },
+        {
+          "type": "checkbox",
+          "id": "enable_mute_toggle",
+          "label": "t:general.settings.enable_mute_button.label",
+          "default": true
+        },
+        {
+          "type": "checkbox",
+          "id": "enable_loop",
+          "label": "t:general.settings.enable_video_loop.label",
+          "default": true
+        },
+        {
+          "type": "header",
+          "content": "t:general.headers.spacing.content"
+        },
+        {
+          "type": "range",
+          "id": "spacing_minimum_height",
+          "min": 0,
+          "max": 500,
+          "step": 10,
+          "unit": "px",
+          "label": "t:general.settings.minimum_height.label",
+          "default": 250
+        },
+        {
+          "type": "checkbox",
+          "id": "enable_padding",
+          "label": "t:general.settings.enable_padding.label",
+          "default": true
+        },
+        {
+          "type": "header",
+          "content": "t:general.headers.color.content"
+        },
+        {
+          "type": "select",
+          "id": "color_scheme",
+          "label": "t:general.settings.color_scheme.label",
+          "options": [
+            {
+              "value": "color__bg-body color__text",
+              "label": "t:general.settings.color_scheme.body.label"
+            },
+            {
+              "value": "color__bg-neutral color__text",
+              "label": "t:general.settings.color_scheme.neutral.label"
+            },
+            {
+              "value": "color__bg-overlay-1 color__text",
+              "label": "t:general.settings.color_scheme.accent_1.label"
+            },
+            {
+              "value": "color__bg-overlay-2 color__text",
+              "label": "t:general.settings.color_scheme.accent_2.label"
+            },
+            {
+              "value": "color__bg-overlay-3 color__text",
+              "label": "t:general.settings.color_scheme.accent_3.label"
+            },
+            {
+              "value": "color__bg-shade-1 color__text",
+              "label": "t:general.settings.color_scheme.shade_1.label"
+            },
+            {
+              "value": "color__bg-shade-2 color__text",
+              "label": "t:general.settings.color_scheme.shade_2.label"
+            },
+            {
+              "value": "color__bg-shade-3 color__text",
+              "label": "t:general.settings.color_scheme.shade_3.label"
+            },
+            {
+              "value": "color__bg-primary color__primary",
+              "label": "t:general.settings.color_scheme.primary.label"
+            },
+            {
+              "value": "color__bg-secondary color__secondary",
+              "label": "t:general.settings.color_scheme.secondary.label"
+            },
+            {
+              "value": "color__bg-tertiary color__tertiary",
+              "label": "t:general.settings.color_scheme.tertiary.label"
+            },
+            {
+              "value": "color__bg-transparent",
+              "label": "t:general.settings.color_scheme.transparent.label"
+            }
+          ],
+          "default": "color__bg-overlay-1 color__text"
+        },
+        {
+          "type": "select",
+          "id": "color_text",
+          "label": "t:general.settings.color_text.label",
+          "options": [
+            {
+              "value": "!color__text",
+              "label": "t:general.settings.color_text.default.label"
+            },
+            {
+              "value": "!color__light",
+              "label": "t:general.settings.color_text.force_light.label"
+            },
+            {
+              "value": "!color__dark",
+              "label": "t:general.settings.color_text.force_dark.label"
+            }
+          ],
+          "default": "!color__text"
+        },
+        {
+          "type": "select",
+          "id": "color_border",
+          "label": "t:general.settings.color_border.label",
+          "options": [
+            {
+              "value": "outline--width color__outline-divider-1",
+              "label": "t:general.settings.color_border.subtle.label"
+            },
+            {
+              "value": "outline--width color__outline-selected-1",
+              "label": "t:general.settings.color_border.strong.label"
+            },
+            {
+              "value": "",
+              "label": "t:general.settings.color_border.none.label"
+            }
+          ],
+          "default": "outline--width color__outline-divider-1"
+        },
+        {
+          "type": "select",
+          "id": "color_button",
+          "label": "t:general.settings.color_button.label",
+          "options": [
+            {
+              "value": "btn--small",
+              "label": "t:general.settings.color_button.primary.label"
+            },
+            {
+              "value": "btn--small btn--secondary",
+              "label": "t:general.settings.color_button.secondary.label"
+            },
+            {
+              "value": "btn--small btn--tertiary",
+              "label": "t:general.settings.color_button.tertiary.label"
+            },
+            {
+              "value": "btn--small btn--neutral",
+              "label": "t:general.settings.color_button.neutral.label"
+            },
+            {
+              "value": "btn--small btn--plain",
+              "label": "t:general.settings.color_button.plain.label"
+            },
+            {
+              "value": "btn--small btn--outline",
+              "label": "t:general.settings.color_button.outline.label"
+            },
+            {
+              "value": "btn--small btn--outline-alt",
+              "label": "t:general.settings.color_button.inverted_outline.label"
+            },
+            {
+              "value": "btn--small btn--minimal",
+              "label": "t:general.settings.color_button.link.label"
+            },
+            {
+              "value": "btn--small btn--minimal-alt",
+              "label": "t:general.settings.color_button.inverted_link.label"
+            }
+          ],
+          "default": "btn--small btn--secondary"
+        },
+        {
+          "type": "checkbox",
+          "id": "enable_gradient",
+          "label": "t:general.settings.enable_gradient.label",
+          "default": false
+        },
+        {
+          "type": "header",
+          "content": "t:general.headers.layout.content"
+        },
+        {
+          "type": "select",
+          "id": "layout_y_alignment",
+          "label": "t:general.settings.y_alignment.label",
+          "options": [
+            {
+              "value": "justify-start",
+              "label": "t:general.settings.y_alignment.top.label"
+            },
+            {
+              "value": "justify-center",
+              "label": "t:general.settings.y_alignment.middle.label"
+            },
+            {
+              "value": "justify-end",
+              "label": "t:general.settings.y_alignment.bottom.label"
+            }
+          ],
+          "default": "justify-end"
+        },
+        {
+          "type": "select",
+          "id": "layout_x_alignment",
+          "label": "t:general.settings.x_alignment.label",
+          "options": [
+            {
+              "value": "left",
+              "label": "t:general.settings.x_alignment.left.label"
+            },
+            {
+              "value": "center",
+              "label": "t:general.settings.x_alignment.center.label"
+            },
+            {
+              "value": "justify",
+              "label": "t:general.settings.x_alignment.justify.label"
+            },
+            {
+              "value": "right",
+              "label": "t:general.settings.x_alignment.right.label"
+            }
+          ],
+          "default": "left"
+        },
+        {
+          "type": "select",
+          "id": "text_position",
+          "label": "t:general.settings.text_position.label",
+          "options": [
+            {
+              "value": "above",
+              "label": "t:general.settings.text_position.above.label"
+            },
+            {
+              "value": "below",
+              "label": "t:general.settings.text_position.below.label"
+            }
+          ],
+          "default": "below"
+        }
+      ]
+    }
+  ],
+  "disabled_on": {
+    "groups": ["custom.overlay"]
+  }
+}
+{% endschema %}

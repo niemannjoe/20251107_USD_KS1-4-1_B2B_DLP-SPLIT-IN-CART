@@ -1,0 +1,346 @@
+<!-- sections/theme__header.liquid -->
+{% comment %}
+  This file is responsible for rendering the header of the theme. It includes the logo, navigation, and other elements that appear in the header.
+
+  Global Variables:
+  - layout_horizontal: {string} Class string to set horizontal margin.
+  - cart_icon_behavior: {string} Behavior of the cart icon - set to drawer to prevent cart from linking to /cart
+{% endcomment %}
+
+{% if section.settings.enable_section %}
+  {% capture logo_default_desktop_size %}
+    height: {{ section.settings.logo_desktop_height }}px;
+    width: {{ section.settings.logo_desktop_height | times: section.settings.logo_default.aspect_ratio }}px;
+  {% endcapture %}
+
+  {% capture logo_default_mobile_size %}
+    height: {{ section.settings.logo_mobile_height }}px;
+    width: {{ section.settings.logo_mobile_height | times: section.settings.logo_default.aspect_ratio }}px;
+  {% endcapture %}
+
+  {% capture logo_alt_text %}
+    {{ section.settings.logo_alt_text | default: shop.name }}
+  {% endcapture %}
+
+  {% capture desktop_actions_left %}
+    <div class="flex flex-grow items-center justify-start py-4 pr-2">
+      
+      {% comment %} Default logo {% endcomment %}
+      {% if section.settings.logo_default %}
+        <a 
+          class="animation-500 relative mr-2 inline-block items-center pr-4"  
+          style="{{ logo_default_desktop_size }}"
+          href="{{ routes.root_url }}" 
+          title="{{ shop.name }}">
+          {{ section.settings.logo_default 
+            | image_url: width: 400 
+            | image_tag: class: 'w-full h-full !bg-transparent object-contain', alt: logo_alt_text }}
+        </a>
+      {% endif %}
+
+      {% comment %} Text fallback {% endcomment %}
+      {% if section.settings.logo_default == blank %}
+        <a 
+          class="relative mr-2 inline-block items-center whitespace-nowrap pr-4 no-underline"
+          href="{{ routes.root_url }}" 
+          title="{{ shop.name }}">
+          {{ shop.name }}
+        </a>
+      {% endif %}
+      
+    </div>
+  {% endcapture %}
+
+  {% capture desktop_actions_right %}
+    <div class="flex items-center justify-end gap-6 py-4 pl-2 text-right">
+    
+    </div>
+  {% endcapture %}
+
+  {% capture desktop_navigation %}
+    <div class="flex w-full gap-4">
+
+    </div>
+  {% endcapture %}
+
+  <nav
+    id="{{ section.id }}"
+    class="
+      animation-300 relative z-10
+      {{ section.settings.bar_capitilization }}
+      {{ section.settings.bar_font }}
+      {{ section.settings.visibility }}
+      {{ section.settings.bar_default_color_scheme }}
+    "
+    x-ref="internal_header"
+    x-data="
+      {
+        hovered: false,
+        is_ready: false
+      }
+    "
+    x-init="      header_bar_height = $refs.internal_header.offsetHeight;"
+  >
+    <div class="relative">
+      {% comment %} Mobile {% endcomment %}
+      <div
+        class="
+          flex flex-wrap items-center py-2 md:hidden
+          {% if section.settings.enable_margin %}
+            {{ settings.x_margin }}
+          {% else %}
+            window--full
+          {% endif %}
+        "
+      >
+        {% comment %} Logo {% endcomment %}
+        <div class="flex flex-shrink flex-grow basis-0 items-center justify-start">
+          {% comment %} Default logo {% endcomment %}
+          {% if section.settings.logo_default %}
+            <a
+              class="animation-500 invisible relative inline-block items-center hover:!opacity-100"
+              style="{{ logo_default_mobile_size }}"
+              href="{{ routes.root_url }}"
+              title="{{ shop.name }}"
+            >
+              {{
+                section.settings.logo_default
+                | image_url: width: 400
+                | image_tag: class: 'w-full h-full !bg-transparent object-cover', alt: section.settings.logo_default.alt
+              }}
+            </a>
+          {% endif %}
+
+          {% comment %} Text fallback {% endcomment %}
+          {% if section.settings.logo_default == blank %}
+            <a
+              class="relative inline-block items-center whitespace-nowrap no-underline"
+              href="{{ routes.root_url }}"
+              title="{{ shop.name }}"
+            >
+              {{ shop.name }}
+            </a>
+          {% endif %}
+        </div>
+
+        {% comment %} Cart and account {% endcomment %}
+        <div class="flex flex-shrink flex-grow basis-0 items-center justify-end text-right"></div>
+      </div>
+
+      {% comment %} Desktop {% endcomment %}
+      <div
+        class="
+          hidden flex-wrap items-stretch md:flex
+          {% if section.settings.enable_margin %}
+            {{ settings.x_margin }}
+          {% else %}
+            window--full
+          {% endif %}
+        "
+      >
+        {{ desktop_actions_left }}
+        {{ desktop_actions_right }}
+        {{ desktop_navigation }}
+      </div>
+    </div>
+  </nav>
+{% endif %}
+
+{% schema %}
+{
+  "name": "t:sections.theme_header.name",
+  "class": "theme__header",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enable_section",
+      "label": "t:general.settings.enable_section.label",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.logos.content"
+    },
+    {
+      "type": "image_picker",
+      "id": "logo_default",
+      "label": "t:general.settings.logo_default.label"
+    },
+    {
+      "type": "range",
+      "id": "logo_desktop_height",
+      "min": 10,
+      "max": 80,
+      "step": 1,
+      "unit": "px",
+      "label": "t:general.settings.desktop_logo_height.label",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "logo_mobile_height",
+      "min": 10,
+      "max": 60,
+      "step": 1,
+      "unit": "px",
+      "label": "t:general.settings.mobile_logo_height.label",
+      "default": 20
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_logo_on_desktop",
+      "label": "t:general.settings.enable_logo_on_desktop.label",
+      "default": false
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.main_section.content"
+    },
+    {
+      "type": "select",
+      "id": "bar_default_color_scheme",
+      "label": "t:general.settings.default_color_scheme.label",
+      "options": [
+        {
+          "value": "color__bg-body color__text",
+          "label": "t:general.settings.color_scheme.body.label"
+        },
+        {
+          "value": "color__bg-neutral color__text",
+          "label": "t:general.settings.color_scheme.neutral.label"
+        },
+        {
+          "value": "color__bg-overlay-1 color__text",
+          "label": "t:general.settings.color_scheme.accent_1.label"
+        },
+        {
+          "value": "color__bg-overlay-2 color__text",
+          "label": "t:general.settings.color_scheme.accent_2.label"
+        },
+        {
+          "value": "color__bg-overlay-3 color__text",
+          "label": "t:general.settings.color_scheme.accent_3.label"
+        },
+        {
+          "value": "color__bg-shade-1 color__text",
+          "label": "t:general.settings.color_scheme.shade_1.label"
+        },
+        {
+          "value": "color__bg-shade-2 color__text",
+          "label": "t:general.settings.color_scheme.shade_2.label"
+        },
+        {
+          "value": "color__bg-shade-3 color__text",
+          "label": "t:general.settings.color_scheme.shade_3.label"
+        },
+        {
+          "value": "color__bg-primary color__primary",
+          "label": "t:general.settings.color_scheme.primary.label"
+        },
+        {
+          "value": "color__bg-secondary color__secondary",
+          "label": "t:general.settings.color_scheme.secondary.label"
+        },
+        {
+          "value": "color__bg-tertiary color__tertiary",
+          "label": "t:general.settings.color_scheme.tertiary.label"
+        }
+      ],
+      "default": "color__bg-body color__text"
+    },
+    {
+      "type": "select",
+      "id": "bar_default_color_border",
+      "label": "t:general.settings.default_color_border.label",
+      "options": [
+        {
+          "value": "color__border-divider-1",
+          "label": "t:general.settings.color_border.subtle.label"
+        },
+        {
+          "value": "color__border-selected-1",
+          "label": "t:general.settings.color_border.strong.label"
+        },
+        {
+          "value": "!color__border-transparent",
+          "label": "t:general.settings.color_border.none.label"
+        }
+      ],
+      "default": "color__border-divider-1"
+    },
+    {
+      "type": "select",
+      "id": "bar_capitilization",
+      "label": "t:general.settings.text_capitalization.label",
+      "options": [
+        {
+          "value": "",
+          "label": "t:general.settings.text_capitalization.standard.label"
+        },
+        {
+          "value": "!uppercase",
+          "label": "t:general.settings.text_capitalization.uppercase.label"
+        },
+        {
+          "value": "!lowercase",
+          "label": "t:general.settings.text_capitalization.lowercase.label"
+        }
+      ],
+      "default": ""
+    },
+    {
+      "type": "select",
+      "id": "bar_font",
+      "label": "t:general.settings.font_family.label",
+      "options": [
+        {
+          "value": "type__body",
+          "label": "t:general.settings.font_family.standard.label"
+        },
+        {
+          "value": "type__heading",
+          "label": "t:general.settings.font_family.heading.label"
+        },
+        {
+          "value": "type__nav",
+          "label": "t:general.settings.font_family.navigation.label"
+        }
+      ],
+      "default": "type__body"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_margin",
+      "label": "t:general.settings.enable_margin.label",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.display.content"
+    },
+    {
+      "type": "select",
+      "id": "visibility",
+      "label": "t:general.settings.visibility.label",
+      "options": [
+        {
+          "value": "",
+          "label": "t:general.settings.visibility.all.label"
+        },
+        {
+          "value": "md:hidden",
+          "label": "t:general.settings.visibility.mobile.label"
+        },
+        {
+          "value": "hidden md:block",
+          "label": "t:general.settings.visibility.desktop.label"
+        }
+      ],
+      "default": ""
+    }
+  ],
+  "disabled_on": {
+    "groups": ["custom.overlay"]
+  }
+}
+{% endschema %}

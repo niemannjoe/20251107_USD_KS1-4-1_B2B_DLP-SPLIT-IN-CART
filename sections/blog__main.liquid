@@ -1,0 +1,268 @@
+<!-- sections/blog__main.liquid -->
+{% comment %}
+  Grid of blog posts.
+
+  Globals:
+  - layout_horizontal: {string} Class string to set horizontal margin.
+  - layout_gap_size: {integer} Set the gap between grid items.
+
+  Recommendations:
+  - Blog thumbnail cards can be adjusted using the thumbnail settings.
+{% endcomment %}
+
+<section
+  id="{{ section.id }}"
+  class="
+    animation-1000
+    {{ section.settings.visibility }}
+    {{ section.settings.color_border }}
+    {{ section.settings.style_border }}
+    {{ section.settings.color_scheme }}
+  "
+>
+  {% render 'blog__subtags' %}
+  {% paginate blog.articles by section.settings.items_per_page %}
+    <div
+      id="js-results"
+      class="
+        animation-500 grid
+        md:grid-cols-{{ section.settings.layout_row_desktop }}
+        grid-cols-{{ section.settings.layout_row_mobile }}
+        {% if section.settings.enable_margin %}
+          {{ settings.x_margin }}
+        {% endif %}
+      "
+      :class="
+        {
+          'opacity-25' : pagination_loading
+        }
+      "
+      style="
+        gap: {{ settings.gap_size }}px;
+        padding-top:{{ section.settings.spacing_top }}px;
+        padding-bottom:{{ section.settings.spacing_bottom }}px;
+        {% unless section.settings.enable_margin %}
+          {% unless settings.gap_size == 1 %}
+            padding-left: {{ settings.gap_size }}px;
+            padding-right: {{ settings.gap_size }}px;
+          {% endunless %}
+        {% endunless %}
+      "
+    >
+      {% for article in blog.articles %}
+        {% render 'component__blog-item', article: article %}
+      {% endfor %}
+    </div>
+
+    {% render 'component__pagination', paginate: paginate %}
+  {% endpaginate %}
+</section>
+
+{% schema %}
+{
+  "name": "t:sections.blog_main.name",
+  "settings": [
+    {
+      "type": "header",
+      "content": "t:general.headers.spacing.content"
+    },
+    {
+      "type": "range",
+      "id": "spacing_top",
+      "min": 0,
+      "max": 300,
+      "step": 10,
+      "unit": "px",
+      "label": "t:general.settings.top_spacing.label",
+      "default": 60
+    },
+    {
+      "type": "range",
+      "id": "spacing_bottom",
+      "min": 0,
+      "max": 300,
+      "step": 10,
+      "unit": "px",
+      "label": "t:general.settings.bottom_spacing.label",
+      "default": 60
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.color.content"
+    },
+    {
+      "type": "select",
+      "id": "color_scheme",
+      "label": "t:general.settings.color_scheme.label",
+      "options": [
+        {
+          "value": "color__bg-body color__text",
+          "label": "t:general.settings.color_scheme.body.label"
+        },
+        {
+          "value": "color__bg-neutral color__neutral",
+          "label": "t:general.settings.color_scheme.neutral.label"
+        },
+        {
+          "value": "color__bg-overlay-1 color__text",
+          "label": "t:general.settings.color_scheme.accent_1.label"
+        },
+        {
+          "value": "color__bg-overlay-2 color__text",
+          "label": "t:general.settings.color_scheme.accent_2.label"
+        },
+        {
+          "value": "color__bg-overlay-3 color__text",
+          "label": "t:general.settings.color_scheme.accent_3.label"
+        },
+        {
+          "value": "color__bg-shade-1 color__text",
+          "label": "t:general.settings.color_scheme.shade_1.label"
+        },
+        {
+          "value": "color__bg-shade-2 color__text",
+          "label": "t:general.settings.color_scheme.shade_2.label"
+        },
+        {
+          "value": "color__bg-shade-3 color__text",
+          "label": "t:general.settings.color_scheme.shade_3.label"
+        },
+        {
+          "value": "color__bg-primary color__primary",
+          "label": "t:general.settings.color_scheme.primary.label"
+        },
+        {
+          "value": "color__bg-secondary color__secondary",
+          "label": "t:general.settings.color_scheme.secondary.label"
+        },
+        {
+          "value": "color__bg-tertiary color__tertiary",
+          "label": "t:general.settings.color_scheme.tertiary.label"
+        }
+      ],
+      "default": "color__bg-body color__text"
+    },
+    {
+      "type": "select",
+      "id": "color_border",
+      "label": "t:general.settings.color_border.label",
+      "options": [
+        {
+          "value": "color__border-divider-1",
+          "label": "t:general.settings.color_border.subtle.label"
+        },
+        {
+          "value": "color__border-selected-1",
+          "label": "t:general.settings.color_border.strong.label"
+        }
+      ],
+      "default": "color__border-divider-1"
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.style.content"
+    },
+    {
+      "type": "select",
+      "id": "style_border",
+      "label": "t:general.settings.border_position.label",
+      "options": [
+        {
+          "value": "",
+          "label": "t:general.settings.border_position.none.label"
+        },
+        {
+          "value": "border--t-width",
+          "label": "t:general.settings.border_position.top.label"
+        },
+        {
+          "value": "border--b-width",
+          "label": "t:general.settings.border_position.bottom.label"
+        },
+        {
+          "value": "border--b-width border--t-width",
+          "label": "t:general.settings.border_position.top_and_bottom.label"
+        }
+      ],
+      "default": "border--b-width"
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.layout.content"
+    },
+    {
+      "type": "paragraph",
+      "content": "t:general.paragraphs.row_size.content"
+    },
+    {
+      "type": "range",
+      "id": "layout_row_desktop",
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "label": "t:general.settings.row_desktop.label",
+      "default": 3
+    },
+    {
+      "type": "range",
+      "id": "layout_row_mobile",
+      "min": 1,
+      "max": 3,
+      "step": 1,
+      "label": "t:general.settings.row_mobile.label",
+      "default": 1
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_margin",
+      "label": "t:general.settings.enable_margin.label",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.pagination.content"
+    },
+    {
+      "type": "range",
+      "id": "items_per_page",
+      "label": "t:general.settings.items_per_page.label",
+      "default": 6,
+      "min": 1,
+      "max": 50,
+      "step": 1
+    },
+    {
+      "type": "header",
+      "content": "t:general.headers.display.content"
+    },
+    {
+      "type": "select",
+      "id": "visibility",
+      "label": "t:general.settings.visibility.label",
+      "options": [
+        {
+          "value": "",
+          "label": "t:general.settings.visibility.all.label"
+        },
+        {
+          "value": "md:hidden",
+          "label": "t:general.settings.visibility.mobile.label"
+        },
+        {
+          "value": "hidden md:block",
+          "label": "t:general.settings.visibility.desktop.label"
+        }
+      ],
+      "default": ""
+    }
+  ],
+  "presets": [
+    {
+      "name": "t:sections.blog_main.name"
+    }
+  ],
+  "enabled_on": {
+    "templates": ["blog"]
+  }
+}
+{% endschema %}
