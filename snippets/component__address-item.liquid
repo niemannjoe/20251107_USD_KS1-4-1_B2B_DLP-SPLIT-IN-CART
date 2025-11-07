@@ -1,0 +1,254 @@
+{% comment %}
+  Address item display and management snippet for customer accounts.
+
+  Accepts:
+  - address: {Object} Liquid object containing address details.
+  - location: {Object} Liquid object containing location details.
+  - container_class: {string} Additional CSS classes for the container.
+  - enable_b2b: {boolean} Whether to enable B2B address management.
+
+  Globals:
+  - settings.close_button_color: {string} Class string to set the color of the close button.
+  - settings.close_button_content: {string} Content type for the close button, can include 'icon', 'text', or both.
+
+  Usage:
+    {% render 'component__address-item',
+      address: customer.address,
+      location: location,
+      container_class: 'additional-classes',
+      enable_b2b: true
+    %}
+
+  Recommendations:
+  - Utilize this snippet within customer account pages to manage addresses.
+  - Ensure that all passed address objects are complete to avoid display issues.
+{% endcomment %}
+
+{% capture default_text %}
+  {{ 'labels.default' | t }}
+{% endcapture %}
+
+{% capture address_edit_button %}
+  {{ 'actions.edit' | t }}
+{% endcapture %}
+
+{% capture highlight_address %}
+  {% if enable_b2b %}
+    {% if location.current? %}
+      color__bg-shade-1
+    {% endif %}
+  {% endif %}
+  {% if customer.default_address.id == address.id %}
+    color__bg-shade-1
+  {% endif %}
+{% endcapture %}
+
+<div
+  class="
+    border--b-width color__border-divider-1 hover:color__bg-shade-1 flex items-stretch justify-between py-4
+    {{ container_class }}
+    {{ highlight_address }}
+  "
+  x-data="
+    {
+      edit_address_drawer: false,
+      delete_address_drawer: false
+    }
+  "
+
+  x-init="
+    $watch('edit_address_drawer', value => {
+      if (value) {
+        document.dispatchEvent(new CustomEvent('address-drawer-opened', {detail: {id: 'edit_address_drawer_{{ address.id }}'}}));
+      }
+    })
+  "
+>
+  {% comment %} Details {% endcomment %}
+  <div>
+    <p>
+      {{ location.name }}
+    </p>
+    <p>
+      {{ address.address1 }}
+    </p>
+    {% if address.address2 != blank %}
+      <p>
+        {{ address.address2 }}
+      </p>
+    {% endif %}
+    <p>
+      {{ address.city }},
+      {% if address.province_code %}
+        {{ address.province_code }}
+      {% endif %}
+      , {{ address.country_code }}
+    </p>
+    <p>
+      {{ address.zip_code }}
+    </p>
+
+    <p class="type--small opacity-50">
+      {{ address.name }}
+    </p>
+    <p class="type--small opacity-50">
+      {{ address.company }}
+    </p>
+    <p class="type--small opacity-50">
+      {{ address.phone }}
+    </p>
+  </div>
+
+  {% comment %} Actions {% endcomment %}
+  <div class="flex min-w-[180px] flex-col items-end justify-between gap-4 text-right align-bottom">
+    {% if enable_b2b %}
+      {% if location.current? %}
+        <div class="flex gap-2">
+          {% render 'component__badge',
+            background: 'transparent',
+            text: 'dark',
+            border: 'divider-1',
+            icon: '',
+            content: default_text
+          %}
+        </div>
+      {% else %}
+        <div></div>
+        <div class="flex flex-wrap items-end justify-end gap-2">
+          <a
+            class="btn btn--smaller btn--secondary"
+            href="{{ location.url_to_set_as_current }}"
+          >
+            {{ 'actions.change_location' | t }}
+          </a>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="flex gap-2">
+        {% if customer.default_address.id == address.id %}
+          {% render 'component__badge',
+            background: 'transparent',
+            text: 'dark',
+            border: 'divider-1',
+            icon: '',
+            content: default_text
+          %}
+        {% endif %}
+      </div>
+      <div class="flex flex-wrap items-end justify-end gap-2">
+        {% comment %}<button
+          class="btn btn--smaller btn--plain"
+          type="button"
+          @click="delete_address_drawer = true"
+        >
+          {{ 'actions.delete' | t }}
+        </button>
+        <button
+          class="btn btn--smaller btn--secondary"
+          type="button"
+          @click="edit_address_drawer = true"
+        >
+          {{ 'actions.edit' | t }}
+        </button>{% endcomment %}
+      </div>
+    {% endif %}
+  </div>
+
+  {% capture edit_address_content %}
+    {% capture edit_id %}edit_address_drawer_{{ address.id }}_{{ section.id }}{% endcapture %}
+    <section 
+      class="border--b-width color__bg-body color__border-divider-1 sticky top-0 z-20 hidden items-center justify-between p-4 md:flex">
+      <span class="flex items-center gap-2">
+        {{ 'labels.account' | t }}
+      </span>
+      <button class="btn btn--smaller
+        {{ settings.close_button_color }}"
+        title="{{ 'actions.close' | t }}"
+        @click="edit_address_drawer = false;">
+        {% if settings.close_button_content contains 'icon' %}
+          {% render 'component__icon', icon: 'x', size: '20' %} 
+        {% endif %}
+        {% if settings.close_button_content contains 'text' %}
+          <span 
+            {% if settings.close_button_content contains 'icon' %}class="ml-1"{% endif %}>
+            {{ 'actions.close' | t }}
+          </span>
+        {% endif %}
+      </button>
+    </section>
+    <section 
+      class="
+        color__bg-body relative flex h-[inherit] flex-grow flex-col overflow-y-auto
+        overflow-x-hidden
+      ">
+      {%
+        render 'addresses__form',
+        id: edit_id,
+        action: address,
+        cta: address_edit_button
+      %}
+    </section>
+  {% endcapture %}
+  {% render 'component__dragdrawer',
+    drawer_id: 'edit_address_drawer',
+    desktop_pos: 'right',
+    mobile_pos: 'bottom',
+    enable_full_height: true,
+    enable_focus_trap: true,
+    content: edit_address_content
+  %}
+
+  {% capture delete_address_content %}
+    <section 
+      class="border--b-width color__bg-body color__border-divider-1 sticky top-0 z-20 hidden items-center justify-between p-4 md:flex">
+      <span class="flex items-center gap-2">
+        {{ 'labels.account' | t }}
+      </span>
+      <button class="btn
+        {{ settings.close_button_color }}"
+        title="{{ 'actions.close' | t }}"
+        @click="delete_address_drawer = false;">
+        {% if settings.close_button_content contains 'icon' %}
+          {% render 'component__icon', icon: 'x', size: '20' %} 
+        {% endif %}
+        {% if settings.close_button_content contains 'text' %}
+          <span 
+            {% if settings.close_button_content contains 'icon' %}class="ml-1"{% endif %}>
+            {{ 'actions.close' | t }}
+          </span>
+        {% endif %}
+      </button>
+    </section>
+    <section 
+      class="
+        color__bg-body relative flex h-[inherit] flex-grow flex-col overflow-y-auto
+        overflow-x-hidden
+      ">
+      <div class="flex flex-col gap-2 p-4">
+        <span>{{ 'info.delete_confirmation' | t }}</span>
+        <span class="type--small opacity-50">{{ address.address1 }}</span>
+      </div>
+      <form
+        class="color__bg-body color__text border--t-width color__border-divider-1 sticky bottom-0 flex w-full gap-4 p-4"
+        method="post"
+        action="{{ routes.account_addresses_url }}/{{ address.id }}">
+        <input type="hidden" name="_method" value="delete">
+        <button 
+          class="btn"
+          type="submit">{{ 'actions.delete' | t }}</button>
+        <button 
+          class="btn btn--plain"
+          type="button"
+          @click="delete_address_drawer = false;">{{ 'actions.cancel' | t }}</button>
+      </form>
+    </section>
+  {% endcapture %}
+  {% render 'component__dragdrawer',
+    drawer_id: 'delete_address_drawer',
+    desktop_pos: 'right',
+    mobile_pos: 'bottom',
+    enable_full_height: true,
+    enable_focus_trap: true,
+    content: delete_address_content
+  %}
+</div>

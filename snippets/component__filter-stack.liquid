@@ -1,0 +1,682 @@
+<!-- snippets/component__filter-stack.liquid -->
+{% comment %}
+  Collection sorting and filtering.
+
+  Accepts:
+  - results: {object} Collection or search results object.
+
+  Usage:
+    {% render 'component__filter-stack'
+      results: collection
+    %}
+
+  Globals:
+  - layout_horizontal: {string} Class string to set horizontal margin.
+  - layout_header_position: {string} Class string to set the position of the header.
+
+  Recommendations:
+  - Use this snippet on a collection or search template.
+{% endcomment %}
+
+{% comment %}
+  Check for active filter
+  Assign active sort filter
+{% endcomment %}
+{% liquid
+  assign active_filter_count = 0
+  for filter in collection.filters
+    if filter.active_values.size > 0
+      assign active_filter_count = active_filter_count | plus: filter.active_values.size
+    endif
+    if filter.type == 'price_range'
+      if filter.min_value.value != null or filter.max_value.value != null
+        assign active_filter_count = active_filter_count | plus: 1
+      endif
+    endif
+  endfor
+
+  assign sort_by = collection.sort_by | default: collection.default_sort_by | split: '?' | first
+  assign default_sort_by = ''
+  for option in collection.sort_options
+    if sort_by contains option.value
+      assign default_sort_by = option.name | split: '?' | first
+    endif
+  endfor
+%}
+
+<section
+  class="
+    sticky top-0
+    {{ section.settings.color_scheme }}
+  "
+  x-ref="destop_filter"
+  x-data="
+    {
+      sort_by : ['{{ sort_by }}']
+    }
+  "
+  {% if settings.header_position == 'sticky' %}
+    :style="
+      {
+        top: header_group_height + 'px'
+      }
+    "
+  {% endif %}
+>
+  {% comment %} Desktop filterstack {% endcomment %}
+  {% if section.settings.enable_sort or section.settings.enable_filter %}
+    <form
+      id="js-desktopFilter"
+      class="sticky top-0 hidden md:block"
+      @change.prevent="handleFilterChange('js-desktopFilter');"
+    >
+      <div class="flex flex-row flex-wrap items-center justify-between gap-2">
+        <div class="w-full">
+          <div
+            class="flex max-h-screen w-full flex-col gap-4 overflow-auto pr-4"
+            style="              padding-top:{{ section.settings.spacing_top }}px;"
+          >
+            {% comment %} Layout toggle {% endcomment %}
+            {% if section.settings.enable_layout_toggle %}
+              <div class="border--b-width color__border-divider-1 pb-4">
+                <div class="color__bg-shade-2 border__button--radius inline-flex gap-1 p-1">
+                  <button
+                    class="border__button--radius hover:color__bg-shade-3 p-2 leading-none"
+                    :class="
+                      {
+                        'color__bg-body' : layout === 'grid'
+                      }
+                    "
+                    title="{{ 'actions.use_grid_view' | t }}"
+                    type="button"
+                    @click="layout = 'grid'; localStorage.setItem('viewMode', layout)"
+                  >
+                    {% render 'component__icon', icon: 'grid', size: '20', class: '' %}
+                  </button>
+                  <button
+                    class="border__button--radius hover:color__bg-shade-3 p-2 leading-none"
+                    :class="
+                      {
+                        'color__bg-body' : layout === 'list'
+                      }
+                    "
+                    title="{{ 'actions.use_list_view' | t }}"
+                    type="button"
+                    @click="layout = 'list'; localStorage.setItem('viewMode', layout)"
+                  >
+                    {% render 'component__icon', icon: 'list', size: '20', class: '' %}
+                  </button>
+                </div>
+              </div>
+            {% endif %}
+
+            {% comment %} Remove all filters {% endcomment %}
+            {% if active_filter_count > 0 %}
+              <div class="border--b-width color__border-divider-1 pb-4">
+                <a
+                  href="{{ collection.url }}?sort_by={{ collection.sort_by }}"
+                  class="btn btn--smaller btn--secondary"
+                  @click.prevent="handleFilterDeleteAll();"
+                >
+                  {% render 'component__icon', icon: 'x', size: '16', class: 'mr-1' %}
+                  {{ 'actions.remove_all' | t }}
+                </a>
+              </div>
+            {% endif %}
+
+            {% comment %} Sort {% endcomment %}
+            {% if section.settings.enable_sort %}
+              {% capture accordion_content %}
+                <div class="flex flex-col gap-4">
+                  {% for option in collection.sort_options %}
+                    <label 
+                      class="flex w-full items-center hover:underline">
+                      <input 
+                        type="radio" 
+                        value="{{ option.value }}" 
+                        name="sort_by" 
+                        autocomplete="off" 
+                        x-model="sort_by"
+                      {% if sort_by == option.value %}checked{% endif %}>
+                      <span class="type--base ml-2">{{ option.name }}</span>
+                    </label>
+                  {% endfor %}
+                </div>
+              {% endcapture %}
+              {% capture accordion_label %}
+                {{ 'actions.sort' | t }}
+              {% endcapture %}
+              {% render 'component__accordion',
+                container_class: 'border--b-width color__border-divider-1',
+                inner_class: '',
+                button_class: '',
+                button_label: accordion_label,
+                content: accordion_content,
+                enable_group_hover: true
+              %}
+            {% endif %}
+
+            {% comment %} Filters {% endcomment %}
+            {% if section.settings.enable_filter %}
+              {% for filter in collection.filters %}
+                {% comment %} Only show filter if it has values {% endcomment %}
+                {% assign has_values = false %}
+                {% for filter_value in filter.values %}
+                  {% if filter_value.count > 0 %}
+                    {% assign has_values = true %}
+                  {% endif %}
+                {% endfor %}
+                {% if filter.type == 'price_range' %}
+                  {% assign has_values = true %}
+                {% endif %}
+
+                {% if has_values %}
+                  {% capture accordion_label %}
+                    <span>{{ filter.label }}</span>
+                    {% if filter.active_values.size > 0 %}
+                      <span class="ml-1">({{ filter.active_values.size }})</span>
+                    {% endif %}
+                  {% endcapture %}
+
+                  {% capture accordion_content %}
+                    <div class="flex flex-col gap-4">
+                      {% case filter.type %}
+                      
+                        {% when 'boolean' or 'list' %}
+                          {% for filter_value in filter.values %}
+                            <label 
+                              class="flex items-center hover:underline" 
+                              for="Filter-{{ filter.param_name }}-{{ forloop.index }}">
+                              <input 
+                                class="mr-2"
+                                id="Filter-{{ filter.param_name }}-{{ forloop.index }}"
+                                type="checkbox"
+                                name="{{ filter_value.param_name }}"
+                                value="{{ filter_value.value }}"
+                                {% if filter_value.active %}checked{% endif %}
+                                {% if filter_value.count == 0 and filter_value.active == false %}disabled{% endif %}>
+                                {% render 'component__filter-swatch', filter: filter, filter_value: filter_value %}
+                                <span class="type--base">{{ filter_value.label }}</span>
+                                <span class="type--base ml-1 opacity-75">({{ filter_value.count }})</span>
+                            </label>
+                          {% endfor %}
+
+                        {% when 'price_range' %}    
+                          <div>
+                            <div class="range-slider color__bg-text relative m-0 mb-6 h-[5px] w-full">
+                              <input 
+                                type="range" 
+                                class="min-val pointer-events-none absolute top-2/4 w-full -translate-y-1/2 appearance-none bg-transparent p-0" 
+                                step="1"
+                                tabindex="-1"
+                                aria-label="{{ 'labels.min_price' | t }}"
+                                x-bind:min="filter_min" 
+                                x-bind:max="filter_max"
+                                x-on:input="handlePriceFilterChange('min')"
+                                x-model="filter_min_price"
+                                name="min-val"
+                              >
+                              <input 
+                                type="range" 
+                                class="max-val pointer-events-none absolute top-2/4 w-full -translate-y-1/2 appearance-none bg-transparent p-0"  
+                                step="1"
+                                tabindex="-1"
+                                aria-label="{{ 'labels.max_price' | t }}"
+                                x-bind:min="filter_min" 
+                                x-bind:max="filter_max"
+                                x-on:input="handlePriceFilterChange('max')"
+                                x-model="filter_max_price"
+                                name="max-val"
+                              >
+                            </div>
+                            <div class="flex items-center justify-between gap-2">
+                              <div class="flex flex-grow flex-row flex-wrap items-center">
+                                <div class="relative w-full">
+                                  <span class="type--smaller absolute left-2 top-0 z-10 !flex h-full items-center" aria-hidden="true">{{ cart.currency.symbol }}</span>
+                                  <input class="min-input !pl-6 !pr-0" 
+                                    x-on:input="handlePriceFilterChange('min')" 
+                                    x-model="filter_min_price"
+                                    name="{{ filter.min_value.param_name }}"
+                                    id="Filter-{{ filter.min_value.param_name }}"
+                                    {% if filter.min_value.value %}
+                                      value="{{ filter.min_value.value | money_without_currency | replace: ',', '' }}"
+                                    {% endif %}
+                                    type="number"
+                                    placeholder="0"
+                                    min="0"
+                                    max="{{ filter.range_max | money_without_currency | replace: ',', '' }}"
+                                  >
+                                </div>
+                              </div>
+                              <div class="flex flex-shrink flex-row flex-wrap items-center justify-center">
+                                —
+                              </div>
+                              <div class="flex flex-grow flex-row flex-wrap items-center">
+                                <div class="relative w-full">
+                                  <span class="type--smaller absolute left-2 top-0 z-10 !flex h-full items-center" aria-hidden="true">{{ cart.currency.symbol }}</span>
+                                  <input class="max-input !pl-6 !pr-0" 
+                                    x-on:input="handlePriceFilterChange('max')" 
+                                    x-model="filter_max_price" 
+                                    name="{{ filter.max_value.param_name }}"
+                                    id="Filter-{{ filter.max_value.param_name }}"
+                                    {% if filter.max_value.value %}
+                                      value="{{ filter.max_value.value | money_without_currency | replace: ',', '' }}"
+                                    {% endif %}
+                                    type="number"
+                                    placeholder="{{ filter.range_max | money_without_currency | replace: ',', '' }}"
+                                    min="0"
+                                    max="{{ filter.range_max | money_without_currency | replace: ',', '' }}">
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                      {% endcase %}
+                    </div>
+                  {% endcapture %}
+
+                  {% render 'component__accordion',
+                    container_class: 'border--b-width color__border-divider-1',
+                    inner_class: '',
+                    button_class: '',
+                    enable_open: section.settings.enable_expand_filters,
+                    button_label: accordion_label,
+                    content: accordion_content,
+                    enable_group_hover: true
+                  %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </form>
+  {% endif %}
+
+  {% comment %} Mobile filterbar {% endcomment %}
+  {% if section.settings.enable_sort or section.settings.enable_filter %}
+    <form
+      id="js-mobileFilter"
+      class="bottom-0 left-0 right-0 z-10 py-4 md:hidden {{ settings.x_margin }}"
+      @change.prevent="handleFilterChange('js-mobileFilter');"
+    >
+      {% comment %} Drawer contents {% endcomment %}
+      {% capture dragdrawer_content %}
+        <div class="color__bg-body flex flex-col gap-4 p-4">
+
+          {% comment %} Layout toggle {% endcomment %}
+          {% if section.settings.enable_layout_toggle %}
+            <div class="border--b-width color__border-divider-1 pb-4">
+              <div class="color__bg-shade-2 border__button--radius inline-flex gap-1 p-1">
+                <button 
+                  class="border__button--radius hover:color__bg-shade-3 p-2 leading-none"
+                  :class="{ 
+                    'color__bg-body' : layout === 'grid'
+                  }"
+                  title="{{ 'actions.use_grid_view' | t }}"
+                  type="button"
+                  @click="
+                    layout = 'grid';
+                  ">
+                  {% render 'component__icon', 
+                    icon: 'grid', 
+                    size: '16', 
+                    class: '' 
+                  %}
+                </button>
+                <button 
+                  class="border__button--radius hover:color__bg-shade-3 p-2 leading-none"
+                  :class="{ 
+                    'color__bg-body' : layout === 'list'
+                  }"
+                  title="{{ 'actions.use_list_view' | t }}"
+                  type="button"
+                  @click="
+                    layout = 'list';
+                  ">
+                  {% render 'component__icon', 
+                    icon: 'list', 
+                    size: '16', 
+                    class: '' 
+                  %}
+                </button>
+              </div>
+            </div>
+          {% endif %}
+          
+          {% comment %} Sort {% endcomment %}
+          {% if section.settings.enable_sort %}
+            {% capture accordion_content %}              
+              <div class="flex flex-col gap-4">
+                {% for option in results.sort_options %}
+                  <label class="flex w-full items-center">
+                    <input type="radio" class="" value="{{ option.value }}" name="sort_by" autocomplete="off" x-model="sort_by"
+                    {% if sort_by == option.value %}checked{% endif %}>
+                    <span class="type--base ml-2">{{ option.name }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+            {% endcapture %}
+            {% capture accordion_title %}
+              {{ 'actions.sort' | t }}  {% if results.sort_by.size > 0 %}({{ default_sort_by }}){% endif %}
+            {% endcapture %}
+            {% render 'component__accordion', 
+              container_class: 'border--b-width color__border-divider-1',
+              inner_class: '',
+              button_class: '',
+              button_label: accordion_title, 
+              content: accordion_content,
+              enable_open: true,
+              enable_group_hover: true
+            %}
+          {% endif %}
+
+          {% comment %} Filters {% endcomment %}
+          {% if section.settings.enable_filter %}
+            {% for filter in results.filters %}  
+              {% assign has_values = false %}
+              {% for filter_value in filter.values %}
+                {% if filter_value.count > 0 %}
+                  {% assign has_values = true %}
+                {% endif %}
+              {% endfor %}
+              {% if filter.type == 'price_range' %}
+                {% assign has_values = true %}
+              {% endif %}
+              {% if has_values %}
+
+                {% capture accordion_content %}  
+                  <div class="flex flex-col gap-4">
+                    {% case filter.type %}
+                    
+                      {% when 'boolean' or 'list' %}
+                        {% for filter_value in filter.values %}
+                          <label class="flex items-center" for="Filter-Mob-{{ filter.param_name }}-{{ forloop.index }}">
+                            <input 
+                              class="mr-2"
+                              id="Filter-Mob-{{ filter.param_name }}-{{ forloop.index }}"
+                              type="checkbox"
+                              name="{{ filter_value.param_name }}"
+                              value="{{ filter_value.value }}"
+                              {% if filter_value.active %}checked{% endif %}
+                              {% if filter_value.count == 0 and filter_value.active == false %}disabled{% endif %}>
+                            {% render 'component__filter-swatch', filter: filter, filter_value: filter_value %}
+                            <span class="type--base">{{ filter_value.label }}</span>
+                            <span class="type--base ml-1 opacity-75">({{ filter_value.count }})</span>
+                          </label>
+                        {% endfor %}
+
+                      {% when 'price_range' %}
+                        <div>
+                          <div class="range-slider color__bg-text relative m-0 mb-6 h-[5px] w-full">
+                            <input 
+                              type="range" 
+                              class="min-val pointer-events-none absolute top-2/4 w-full -translate-y-1/2 appearance-none bg-transparent p-0" 
+                              step="1"
+                              tabindex="-1"
+                              aria-label="{{ 'labels.min_price' | t }}"
+                              x-bind:min="filter_min" 
+                              x-bind:max="filter_max"
+                              x-on:input="handlePriceFilterChange('min')"
+                              x-model="filter_min_price"
+                              name="min-val"
+                            >
+                            <input 
+                              type="range" 
+                              class="max-val pointer-events-none absolute top-2/4 w-full -translate-y-1/2 appearance-none bg-transparent p-0"  
+                              step="1"
+                              tabindex="-1"
+                              aria-label="{{ 'labels.max_price' | t }}"
+                              x-bind:min="filter_min" 
+                              x-bind:max="filter_max"
+                              x-on:input="handlePriceFilterChange('max')"
+                              x-model="filter_max_price"
+                              name="max-val"
+                            >
+                          </div>
+                          <div class="flex items-center justify-between gap-2">
+                            <div class="flex flex-grow flex-row flex-wrap items-center">
+                              <div class="relative w-full">
+                                <span class="type--smaller absolute left-2 top-0 z-10 !flex h-full items-center" aria-hidden="true">{{ cart.currency.symbol }}</span>
+                                <input class="!pl-6 !pr-0" 
+                                  x-on:input="handlePriceFilterChange('min')" 
+                                  x-model="filter_min_price"
+                                  name="{{ filter.min_value.param_name }}"
+                                  id="Filter-{{ filter.min_value.param_name }}"
+                                  {% if filter.min_value.value %}
+                                    value="{{ filter.min_value.value | money_without_currency | replace: ',', '' }}"
+                                  {% endif %}
+                                  type="number"
+                                  placeholder="0"
+                                  min="0"
+                                  max="{{ filter.range_max | money_without_currency | replace: ',', '' }}"
+                                >
+                              </div>
+                            </div>
+                            <div class="flex flex-shrink flex-row flex-wrap items-center justify-center">
+                              —
+                            </div>
+                            <div class="flex flex-grow flex-row flex-wrap items-center">
+                              <div class="relative w-full">
+                                <span class="type--smaller absolute left-2 top-0 z-10 !flex h-full items-center" aria-hidden="true">{{ cart.currency.symbol }}</span>
+                                <input class="!pl-6 !pr-0" 
+                                  x-on:input="handlePriceFilterChange('max')" 
+                                  x-model="filter_max_price" 
+                                  name="{{ filter.max_value.param_name }}"
+                                  id="Filter-{{ filter.max_value.param_name }}"
+                                  {% if filter.max_value.value %}
+                                    value="{{ filter.max_value.value | money_without_currency | replace: ',', '' }}"
+                                  {% endif %}
+                                  type="number"
+                                  placeholder="{{ filter.range_max | money_without_currency | replace: ',', '' }}"
+                                  min="0"
+                                  max="{{ filter.range_max | money_without_currency | replace: ',', '' }}">
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                    {% endcase %}
+                  </div>
+                {% endcapture %}
+
+                {% capture accordion_title %}
+                  {% if filter.type == "price_range" %}
+                    {% if filter.min_value.value != nil or filter.max_value.value != nil %}
+                      <strong>{{ filter.label }}</strong>
+                    {% else %}
+                      <span>{{ filter.label }}</span>
+                    {% endif %}
+                  {% else %}
+                    {% if filter.active_values.size > 0 %}
+                      <strong>{{ filter.label }}</strong><span class="ml-1">({{ filter.active_values.size }})</span>
+                    {% else %}
+                      <span>{{ filter.label }}</span>
+                    {% endif %}
+                  {% endif %}
+                {% endcapture %}
+
+                {% render 'component__accordion', 
+                  container_class: 'border--b-width color__border-divider-1',
+                  inner_class: '',
+                  button_class: '',
+                  button_label: accordion_title, 
+                  content: accordion_content,
+                  enable_open: true,
+                  enable_group_hover: true
+                %}
+                
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+              
+          {% comment %} Sticky bar {% endcomment %}
+          <div class="color__bg-body border--t-width color__border-divider-1 sticky bottom-0 z-10 py-4"
+            x-show="{{ active_filter_count }} > 0">
+            <div 
+              class="relative w-full"
+              x-data="{
+                index: 0,
+                index_scroll: 0,
+                index_size: {{ results.filters.size }}
+              }">
+              <div class="inline-flex w-full snap-x overflow-x-auto whitespace-nowrap" x-ref="slider">
+
+                {% if active_filter_count > 0 %}
+                  <div class="mr-2 flex flex-none snap-start justify-center" 
+                    x-intersect:enter.full="index = 0;"
+                    x-bind:data-slide="0">
+
+                    <a href="{{ results.url }}?sort_by={{ results.sort_by }}" class="btn btn--small btn--secondary"
+                      @click.prevent="handleFilterDeleteAll();">
+                      {% render 'component__icon', icon: 'x', size: '16', class: 'mr-1' %} {{ 'actions.remove_all' | t }}
+                    </a>
+                  </div>
+                {% endif %}
+
+                {% for filter in results.filters %}
+                  {% if filter.type == "price_range" %}
+                    {% if filter.min_value.value != nil or filter.max_value.value != nil %}
+                      <div class="mr-2 flex flex-none snap-start justify-center" 
+                        x-intersect:enter.full="index = {{ forloop.index0 }};"
+                        x-bind:data-slide="{{ forloop.index0 }}">
+                        <a class="btn btn--smaller btn--plain" href="{{ filter.url_to_remove }}"
+                          @click.prevent="handleFilterDelete('{{ filter.param_name }}');">
+                          {% assign min_value = filter.min_value.value | default: 0 %}
+                          {% assign max_value = filter.max_value.value | default: filter.range_max %}
+                          {% render 'component__icon', icon: 'x', size: '16', class: 'mr-1' %}
+                          {{ min_value | money }} - {{ max_value | money }}
+                        </a>
+                      </div>
+                    {% endif %}
+                  {% else %}
+                    {% for filter_value in filter.active_values %}
+                      <div class="mr-2 flex flex-none snap-start justify-center" 
+                        x-intersect:enter.full="index = {{ forloop.index0 }};"
+                        x-bind:data-slide="{{ forloop.index0 }}">
+                        <a class="btn btn--smaller btn--plain" href="{{ filter_value.url_to_remove }}"
+                          @click.prevent="handleFilterDelete('{{ filter.param_name }}');">
+                          {% render 'component__icon', icon: 'x', size: '16', class: 'mr-1' %}
+                          {{ filter.label }}: {{ filter_value.label }}
+                        </a>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                {% endfor %}
+                
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      {% endcapture %}
+
+      {% comment %} Filter button {% endcomment %}
+      <div
+        class="flex flex-row flex-nowrap items-center justify-between md:hidden"
+        x-ref="mobile_filter"
+      >
+        <div class="w-full">
+          <button
+            class="btn btn--small btn--plain !w-full"
+            type="button"
+            @click="
+              hide_header = true;
+              filter_overlay = true;
+            "
+          >
+            {{ 'actions.filter_and_sort' | t }}
+            <span class="ml-1">
+              {% if active_filter_count > 0 %}({{ active_filter_count }}){% endif %}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {% comment %} Render drawer {% endcomment %}
+      {% render 'component__dragdrawer',
+        drawer_id: 'filter_overlay',
+        enable_focus_trap: true,
+        content: dragdrawer_content
+      %}
+    </form>
+  {% endif %}
+
+  {% comment %} Active filters {% endcomment %}
+  {% if active_filter_count > 0 %}
+    <section class="color__bg-body border--t-width color__border-divider-1 sticky bottom-0 z-10 hidden flex-wrap py-2 md:flex">
+      <div
+        class="relative flex w-full"
+        x-data="
+          {
+            index: 0,
+            index_scroll: 0,
+            index_size: {{ collection.filters.size }}
+          }
+        "
+      >
+        <div class="flex w-full flex-col items-start gap-2">
+          {% for filter in collection.filters %}
+            {% if filter.type == 'price_range' %}
+              {% if filter.min_value.value != null or filter.max_value.value != null %}
+                <div class="flex flex-none snap-start justify-center">
+                  <a
+                    class="flex items-center"
+                    href="{{ filter.url_to_remove }}"
+                    @click.prevent="handleFilterDelete('{{ filter.param_name }}');"
+                  >
+                    {% assign min_value = filter.min_value.value | default: 0 %}
+                    {% assign max_value = filter.max_value.value | default: filter.range_max %}
+                    {% render 'component__icon', icon: 'x', size: '16', class: 'mr-1' %}
+                    {{ min_value | money }} - {{ max_value | money }}
+                  </a>
+                </div>
+              {% endif %}
+            {% else %}
+              {% for filter_value in filter.active_values %}
+                <div class="flex flex-none snap-start justify-center">
+                  <a
+                    class="flex items-center"
+                    href="{{ filter_value.url_to_remove }}"
+                    @click.prevent="handleFilterDelete('{{ filter.param_name }}');"
+                  >
+                    {% render 'component__icon', icon: 'x', size: '16', class: 'mr-1' %}
+                    {{ filter.label }}: {{ filter_value.label }}
+                  </a>
+                </div>
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {% comment %} Setup values for range filters {% endcomment %}
+  {% for filter in collection.filters %}
+    {% if filter.type == 'price_range' %}
+      <script>
+        const currency = window.Shopify.currency.active;
+        let filter_min_price;
+        let filter_max_price;
+        let filter_max;
+        if(currency === "CLP" || currency === "JPY" || currency === "KRW" || currency === "IDR" || currency === "VND" || currency === "IRR") {
+          filter_min_price = {% if filter.min_value.value %}{{ filter.min_value.value | money_without_currency | replace: '.', '' | replace: ',', '' }}{% else %}0{% endif %}
+          filter_max_price = {% if filter.max_value.value %}{{ filter.max_value.value | money_without_currency | replace: '.', '' | replace: ',', '' }}{% else %}{{ filter.range_max | money_without_currency | replace: '.', '' | replace: ',', '' }}{% endif %}
+          filter_max = {{ filter.range_max | money_without_currency | replace: '.', '' | replace: ',', '' }}
+        } else {
+          filter_min_price = {% if filter.min_value.value %}{{ filter.min_value.value | money_without_currency | replace: ',', '' }}{% else %}0{% endif %}
+          filter_max_price = {% if filter.max_value.value %}{{ filter.max_value.value | money_without_currency | replace: ',', '' }}{% else %}{{ filter.range_max | money_without_currency | replace: ',', '' }}{% endif %}
+          filter_max = {{ filter.range_max | money_without_currency | replace: ',', '' }}
+        }
+        window.__initialData = window.__initialData || {};
+        Object.assign(window.__initialData, {
+          filter_min_price: filter_min_price,
+          filter_max_price: filter_max_price,
+          filter_min: 0,
+          filter_max: filter_max,
+          filter_min_thumb: 0,
+          filter_max_thumb: 0,
+        });
+      </script>
+    {% endif %}
+  {% endfor %}
+</section>

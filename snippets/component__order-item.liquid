@@ -1,0 +1,92 @@
+{% comment %}
+  Order Item Display Component for Shopify Stores.
+
+  This snippet is used to display a summary of an order with links to customer details, product images, and actions like reorder. It is designed to be reusable and adaptable for different parts of the Shopify store where an order summary might be needed.
+
+  Accepts:
+  - order: {Object} The order object containing details like name, customer URL, total net amount, creation date, line items, financial status, and fulfillment status.
+  - container_class: {string} Additional classes to apply to the container.
+
+  Globals:
+  - settings.currency_format: {string} Format string for displaying prices, e.g., "${{amount}}".
+
+  Usage:
+    {% render 'component__order-item',
+      order: order,
+      container_class: 'px-4'
+    %}
+
+  Recommendations:
+  - Utilize this snippet in any part of your Shopify store where a quick summary of an order is beneficial for user navigation and actions.
+  - Ensure that the order object passed to this snippet is complete and includes all necessary properties for display.
+{% endcomment %}
+
+<div
+  class="
+    border--b-width color__border-divider-1 hover:color__bg-shade-1 flex items-stretch justify-between py-4
+    {{ container_class }}
+  "
+>
+  {% comment %} Details {% endcomment %}
+  <div class="flex flex-col">
+    <span class="type--small m-0 truncate opacity-50 order__num">
+      {{ order.name | link_to: order.customer_url }}
+    </span>
+    {% render 'component__format-price', price: order.total_net_amount %}
+    <span class="type--small m-0 truncate opacity-50">
+      {{ order.created_at | date: format: 'abbreviated_date' }}
+    </span>
+
+    <div class="mt-2 flex flex-wrap gap-2">
+      {% for line_item in order.line_items limit: 5 %}
+        <div class="h-10 w-10">
+          {% render 'component__image',
+            image: line_item.image,
+            max_width: 64,
+            background_class: '',
+            container_class: 'h-full border--radius color__border-divider-1 border--width',
+            crop_class: 'object-contain',
+            enable_lazy_load: true
+          %}
+        </div>
+      {% endfor %}
+      {% if order.line_items.size > 5 %}
+        <div class="color__bg-shade-2 border--radius color__border-divider-1 border--width flex h-10 w-10 items-center justify-center">
+          <span class="type--smaller opacity-50">+ {{ order.line_items.size | minus: 5 }}</span>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% comment %} Actions {% endcomment %}
+  <div class="flex min-w-[180px] flex-col items-end justify-between gap-2 text-right align-bottom">
+      <div class="flex gap-2">
+        {% render 'component__badge',
+          background: 'transparent',
+          text: 'dark',
+          border: 'divider-1',
+          icon: '',
+          content: order.financial_status_label
+        %}
+        {% render 'component__badge',
+          background: 'transparent',
+          text: 'dark',
+          border: 'divider-1',
+          icon: '',
+          content: order.fulfillment_status_label
+        %}
+      </div>
+    <div class="flex flex-wrap items-end justify-end gap-2">
+      {% assign reorder_url = '' %}
+      {% for line_item in order.line_items %}
+        {% capture reorder_url %}{{ reorder_url | append: line_item.variant_id | append: ':' | append: line_item.quantity | append: ',' }}{% endcapture %}
+      {% endfor %}
+      <a href="{{ order.customer_url }}" class="btn btn--plain btn--smaller btn--secondary">
+        {{- 'labels.details' | t -}}
+      </a>
+      <a href="{{ '/cart/' | append: reorder_url }}" class="btn btn--smaller btn--secondary">
+        {{- 'actions.reorder' | t -}}
+      </a>
+    </div>
+  </div>
+</div>

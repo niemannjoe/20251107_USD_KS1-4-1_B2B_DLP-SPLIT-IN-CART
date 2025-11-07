@@ -1,0 +1,235 @@
+<!-- snippets/gallery__fullscreen.liquid -->
+{% comment %}
+  This file creates a fullscreen gallery for product media, allowing users to zoom in and out of images and navigate through them.
+
+  Globals:
+  - settings.gap_size: {integer} Set the gap size between slides.
+  - settings.x_margin: {string} Class string to set horizontal margin.
+
+  Usage:
+    {% render 'gallery__fullscreen', product: product %}
+
+  Recommendations:
+  - Use this snippet to provide an interactive fullscreen gallery experience for product images.
+{% endcomment %}
+
+
+
+{% capture slides %}
+  {% for media in product.media %}
+    <div 
+      class="
+        color__bg-shade-2 relative flex h-full w-full flex-none select-none snap-center items-center justify-center overflow-clip whitespace-normal
+        {% unless media.media_type == 'image' %} hidden {% endunless %}
+      " 
+      :class="{ 
+        'z-10' : gallery_index == {{ forloop.index0 }}
+      }"
+      x-bind:data-slide="{{ forloop.index0 }}"
+      x-intersect:enter.half="gallery_index = {{ forloop.index0 }};"
+      @click="
+        gallery_zoom_{{ forloop.index0 }} = !gallery_zoom_{{ forloop.index0 }};
+        zoomed = !zoomed;
+      ">
+      <div 
+        class="
+          flex h-full w-full flex-none cursor-zoom-in items-center justify-center
+          {{ settings.x_margin }}
+        "
+        x-show="!gallery_zoom_{{ forloop.index0 }}">
+        {% render 'component__image',
+          image: media,
+          max_width: media.width,
+          parent_class: 'w-full h-full',
+          container_class: 'absolute max-h-full max-w-full',
+          image_class: 'max-h-full max-w-full',
+          crop_class: 'object-contain',
+          enable_ratio: true,
+          enable_lazy_load: false,
+          enable_eager_load: true
+        %}
+        {% if section.settings.enable_alt %}
+          <div class="type--smaller absolute bottom-2 left-2 max-w-64 whitespace-normal text-left">
+          {{ media.alt }}
+          </div>
+        {% endif %}
+      </div>
+      <div 
+        class="pointer-events-none flex h-full w-full flex-none cursor-zoom-out items-center justify-center"
+        :class="{ 
+          'hidden' : !gallery_zoom_{{ forloop.index0 }} 
+        }"
+        :style="
+          'transform: translate('+(((mouse_x/width)-0.5)*100)+'%, '+(((mouse_y/height)-0.5)*100)+'%)'
+        "
+        @touchstart="
+          if (zoomed) {
+            touch_x = $event.touches[0].clientX;
+            touch_y = $event.touches[0].clientY;
+            is_dragging = false;
+          }
+        "
+        @touchmove="
+          if (zoomed) {
+            if (Math.abs($event.touches[0].clientX - touch_x) > 10 || Math.abs($event.touches[0].clientY - touch_y) > 10) {
+              is_dragging = true;
+            }
+          }
+        "
+        @touchend="
+          if (!is_dragging) {
+            gallery_zoom_{{ forloop.index0 }} = !gallery_zoom_{{ forloop.index0 }};
+            zoomed = !zoomed;
+          }
+        "
+        x-show="gallery_zoom_{{ forloop.index0 }}"
+        x-cloak>
+        {% capture image_class %}
+          absolute object-contain h-auto max-w-full select-none {{ section.settings.zoom_level }}
+        {% endcapture %}
+        {{ media
+          | image_url: width: media.width 
+          | image_tag: class: image_class, loading: 'eager', alt: media.alt }}
+      </div>
+    </div>
+  {% endfor %}
+{% endcapture %}
+
+<div
+  class="flex w-full flex-col"
+  x-data="
+    {
+      mouse_x: 0,
+      mouse_y: 0,
+      height: 0,
+      width: 0,
+      zoomed: false,
+      touch_x: 0,
+      touch_y: 0,
+      is_dragging: false
+    }
+  "
+  @mousemove="
+    height = $refs.fullscreen.offsetHeight;
+    width = $refs.fullscreen.offsetWidth;
+    mouse_x = $event.clientX;
+    mouse_y = $event.clientY;
+  "
+  @touchmove="
+    height = $refs.fullscreen.offsetHeight;
+    width = $refs.fullscreen.offsetWidth;
+    mouse_x = $event.touches[0].clientX - $refs.fullscreen.getBoundingClientRect().left;
+    mouse_y = $event.touches[0].clientY - $refs.fullscreen.getBoundingClientRect().top;
+  "
+  @touchstart="
+    height = $refs.fullscreen.offsetHeight;
+    width = $refs.fullscreen.offsetWidth;
+  "
+  @keyup.escape.window="
+    fullscreen = false;
+    has_overlay = false;
+    hide_header = false;
+    enable_body_scrolling = true;
+  "
+>
+  <div
+    class="relative flex w-full flex-grow"
+    x-ref="fullscreen"
+  >
+    {% comment %} Slides {% endcomment %}
+    <div
+      class="js-zoomSlider inline-flex w-full snap-y snap-mandatory flex-col gap-4 overflow-y-auto scroll-smooth whitespace-nowrap"
+      :class="
+        {
+          '!overflow-hidden': zoomed
+        }
+      "
+      style="gap: {{ settings.layout_gap_size }}px;"
+    >
+      {{ slides }}
+    </div>
+
+    {% comment %} Actions {% endcomment %}
+    <div
+      class="absolute bottom-2 left-0 right-0 z-10 flex w-full flex-wrap items-center justify-center gap-4 text-center"
+      @mousemove="
+        mouse_x = window.innerWidth / 2;
+        mouse_y = window.innerHeight / 2;
+      "
+    >
+      {% comment %} Close button {% endcomment %}
+      <button
+        class="btn btn--plain btn--smaller animation-300 !p-2 hover:opacity-100"
+        title="{{ 'actions.close' | t }}"
+        @click="
+          fullscreen = false;
+          has_overlay = false;
+          hide_header = false;
+          enable_body_scrolling = true;
+        "
+      >
+        {% if settings.close_button_content contains 'icon' %}
+          {% render 'component__icon', icon: 'x', size: '16' %}
+        {% endif %}
+        {% if settings.close_button_content contains 'text' %}
+          <span
+            {% if settings.close_button_content contains 'icon' %}
+              class="ml-1"
+            {% endif %}
+          >
+            {{ 'actions.close' | t }}
+          </span>
+        {% endif %}
+      </button>
+
+      {% comment %} Arrows {% endcomment %}
+      {% if product.media.size > 1 %}
+        <div
+          class="color__bg-overlay-1 relative flex w-auto items-center justify-center gap-2 rounded-full p-2 px-4"
+        >
+          <button
+            class="leading-none"
+            style="cursor: w-resize;"
+            title="{{ 'actions.previous' | t }}"
+            type="button"
+            @click="galleryScrollBack();"
+          >
+            {% render 'component__icon', icon: 'chevron-small-up', size: '20', class: '' %}
+          </button>
+          {% if product.media.size > 1 %}
+            <span class="type--smaller ">
+              <span x-text="gallery_index+1">1</span>/<span>{{ product.media.size }}</span>
+            </span>
+          {% endif %}
+          <button
+            class="leading-none"
+            style="cursor: e-resize;"
+            title="{{ 'actions.next' | t }}"
+            type="button"
+            @click="galleryScrollNext();"
+          >
+            {% render 'component__icon', icon: 'chevron-small-down', size: '20', class: '' %}
+          </button>
+        </div>
+      {% endif %}
+
+      {% comment %} Zoom {% endcomment %}
+      <button
+        class="btn btn--plain btn--smaller animation-300 !p-2 hover:opacity-100"
+        title="{{ 'actions.zoom_out' | t }}"
+        x-show="zoomed"
+        @click="galleryZoomOut();"
+      >
+        {% render 'component__icon', icon: 'minus', size: '16', class: '' %}
+      </button>
+      <button
+        class="btn btn--plain btn--smaller animation-300 !p-2 hover:opacity-100"
+        title="{{ 'actions.zoom_in' | t }}"
+        x-show="!zoomed"
+        @click="galleryZoomIn();"
+      >
+        {% render 'component__icon', icon: 'plus', size: '16', class: '' %}
+      </button>
+    </div>
+  </div>
+</div>

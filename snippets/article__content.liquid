@@ -1,0 +1,48 @@
+<!-- snippets/article__content.liquid -->
+{% comment %} 
+  Additional text for a blog article.
+  
+  Accepts:
+  - block: {Object} Liquid object containing block settings.
+
+  Globals:
+  - settings.x_margin: {string} Determines the horizontal margin.
+
+  Usage:
+    {% render 'article__content',
+      block: block 
+    %}
+
+  Recommendations:
+  - Render this snippet on an article template.
+{% endcomment %}
+
+<div 
+  id="article-content"
+  class="
+    {{ block.settings.color_scheme }}
+    {{ block.settings.color_border }}
+    {{ block.settings.style_border }}
+  "
+  style="
+    padding-top:{{ block.settings.spacing_top }}px;
+    padding-bottom:{{ block.settings.spacing_bottom }}px;
+  ">
+  <div 
+    class="
+      flex 
+      {{ block.settings.layout_x_alignment }}
+    ">
+    <div 
+      class="w-full max-w-4xl rte">
+      {% unless block.settings.heading == blank %}
+        <h2 class="type__heading-1">{{ block.settings.heading }}</h2>
+      {% endunless %}
+      {% unless block.settings.content == blank %}
+        <div>
+          {{ block.settings.content }}
+        </div>
+      {% endunless %}
+    </div>
+  </div>
+</div>

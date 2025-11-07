@@ -1,0 +1,48 @@
+{% comment %}<style>
+.clear-button {
+  display: none;
+}
+.clear-checkbox:checked + .clear-button {
+  display: initial;
+}
+  a.button { width: 100%; border: 1px solid #25282a; padding: .5rem 1.5rem; text-align: center; display: block; text-decoration: none; margin-top: 10px; }
+  a.button:hover { border: 1px solid rgba(0,0,0,.5); }
+div#clear-container {
+    /* margin-top: 10px; */
+    height: 0;
+    /* height: auto; */
+    /*width: calc(100% - 34px);*/
+    font-size: 14px;
+    /*position: absolute;*/
+    /*top: 50%;*/
+    transform: translatey(-50%);
+}
+#clear-container a.button {
+    border: 1px solid #25282a;
+    text-align: center;
+    display: block;
+    text-decoration: none;
+    margin-top: 0;
+    width: 22%;
+    padding: 3px 0;
+    font-size: 14px;
+    border-radius: 3px;
+    position: absolute;
+    top: -4px;
+    right: 0;
+    text-transform: uppercase;
+  font-family: 'Veneer Clean';
+}
+.clear-checkbox:checked + .clear-button {
+    display: inline-flex;
+}
+</style>{% endcomment %}
+<div id="clear-container">
+<form action="clear-checkbox" class="text--small mb-0 text--small">
+  <label class="sr-only" for="clear">Clear cart</label> <input type="checkbox" class="clear-checkbox mr-2 mb-1">Clear cart. Can't undo.
+  <div class="clear-button">
+      <a class="button" href="{{ routes.cart_clear_url }}">Clear</a>
+  </div>
+</form>
+</div>     
+              

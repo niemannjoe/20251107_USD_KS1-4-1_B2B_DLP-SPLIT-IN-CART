@@ -1,0 +1,78 @@
+<!-- snippets/component__rating.liquid -->
+{% comment %}
+  Rating component.
+
+  Accepts:
+    - product: {object} Product object.
+    - enable_stars: {boolean} Whether to display stars.
+    - enable_badge: {boolean} Whether to display a badge.
+    - badge_background: {string} Background color for the badge.
+    - badge_text: {string} Text for the badge.
+    - badge_border: {string} Border color for the badge.
+
+  Usage:
+    {% render 'component__rating',
+      product: product,
+      enable_stars: true,
+      enable_badge: true,
+      badge_background: 'color__bg-secondary',
+      badge_text: 'text',
+      badge_border: 'color__bg-secondary'
+    %}
+{% endcomment %}
+
+{% comment %}
+  Below metafields can be swapped to connect to any app. E.g. using Loox you might use the following metafields
+
+  - {% assign rating = product.metafields.loox.avg_rating %}
+  - {% assign rating_count = product.metafields.loox.num_reviews %}
+  - {% assign max = 5 %}
+{% endcomment %}
+{% assign rating = product.metafields.reviews.rating.value.rating | times: 1 %}
+{% assign rating_count = product.metafields.reviews.rating_count | default: 0 %}
+{% assign max = product.metafields.reviews.rating.value.scale_max | default: 5 %}
+
+{% assign full_stars = rating | floor %}
+{% assign full_stars_plus_one = full_stars | plus: 1 %}
+{% assign has_half_star = rating | modulo: 1 %}
+
+{% capture review_content %}
+  <div class="flex items-center gap-1">
+    {% if enable_stars %}
+      <div class="flex items-center">
+        {% if rating == 0 %}
+          {% for iteration in (1..max) %}
+            {% render 'component__icon', icon: 'star-outline', size: '14' %}
+          {% endfor %}
+        {% else %}
+          {% for iteration in (1..max) %}
+            {% if iteration <= full_stars %}
+              {% render 'component__icon', icon: 'star-fill', size: '14' %}
+            {% elsif iteration == full_stars_plus_one and has_half_star > 0 %}
+              {% render 'component__icon', icon: 'star-half', size: '14' %}
+            {% else %}
+              {% render 'component__icon', icon: 'star-outline', size: '14' %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      </div>
+    {% else %}
+      {% render 'component__icon', icon: 'star', size: '14' %}
+    {% endif %}
+    <span class="type--smaller leading-none">{{ rating | round: 2 }}</span>
+    <span class="type--smaller leading-none">({{ rating_count }})</span>
+  </div>
+{% endcapture %}
+
+{% if rating > 0 or enable_empty %}
+  {% if enable_badge %}
+    {% render 'component__badge',
+      content: review_content,
+      background: badge_background,
+      text: badge_text,
+      border: badge_border
+    %}
+  {% else %}
+    {{ review_content }}
+  {% endif %}
+{% endif %}

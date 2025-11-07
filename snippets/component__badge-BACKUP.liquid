@@ -1,0 +1,95 @@
+<!-- snippets/component__badge.liquid -->
+{% comment %} 
+  Badge to display highlighted text.
+
+  Accepts: 
+  - container_class: {string} Set classes for the container.
+  - background: {string} Set color for the background.
+  - text: {string} Set color for the text.
+  - border: {string} Set color for the border.
+  - icon: {string} Set icon to display from component__icon.liquid.
+  - content: {string} Set content of the badge.
+
+  Usage:
+    {% render 'component__badge', 
+      container_class: 'my-class',
+      background: 'overlay-1',
+      text: 'secondary',
+      border: 'secondary',
+      icon: '',
+      content: taxes_included 
+    %}
+  
+  Possible enhancements:
+  - Add option to show icon in beginning or end.
+
+  Recommendations:
+  - Badges are commonly used to highlight product details like "best sellers"
+  - Use product tags to add badges to product thumbnails.
+{% endcomment %}
+
+{% comment %} ORIGINAL BADGE CODE 
+ <div 
+  class="
+    border__element--radius inline-flex items-center px-2 py-0.5 border--width gap-2
+    color__bg-{{ background | strip }} 
+    color__{{ text | strip }} 
+    color__border-{{ border | strip }}
+    {{ container_class }}
+  ">
+  {% unless icon == blank %}
+    {% render 'component__icon', icon: icon, size: '14' %} 
+  {% endunless %}
+  <span class="flex items-center type--smaller">{{ content }}</span>
+</div>
+{% endcomment %}
+
+
+  {%- assign badges = product.metafields.custom.badge.value -%}
+
+  {%- if badges and badges.size > 0 -%}
+  <div class="product-badges flex gap-2">
+      {%- for badge in badges -%}
+        <div
+          class="
+            border__element--radius inline-flex items-center px-2 py-0.5 border--width gap-2
+            {% if badge contains 'Coming Soon' %}
+            color__bg-secondary color__light color__border-secondary
+            {% endif %}
+            {% if badge contains 'New' %}
+            color__bg-secondary color__light color__border-secondary
+            {% endif %}
+            {% if badge contains 'Sale' or badge contains 'Last Chance' %}
+              color__bg-red color__light color__border-red
+            {% endif %}
+            {% if badge contains 'MOQ' %}
+              color__bg-yellow color__dark color__border-yellow
+            {% endif %}
+            {% if badge contains 'Exclusive' %}
+              color__bg-silver color__dark color__border-silver
+            {% endif %}
+            {% if badge contains 'Embroidered' or badge contains 'Screen Print' or badge contains 'Etched' %}
+              color__bg-primary color__light color__border-primary
+            {% endif %}
+            {% if badge contains 'Dropship' %}
+              color__bg-orange color__dark color__border-orange
+            {% endif %}
+            {% if badge contains 'Made in USA' %}
+              color__bg-usa color__light color__border-usa
+            {% endif %}
+            {% if badge contains 'Pre-Order' %}
+              color__bg-preorder color__dark color__border-preorder
+            {% endif %}
+            {% if badge contains 'SOLD OUT' %}
+              color__bg-soldout color__red color__border-soldout
+            {% endif %}
+            {{ container_class }}
+        ">
+        {% unless icon == blank %}
+            {% render 'component__icon', icon: icon, size: '14' %}
+        {% endunless %}
+          <span class="flex items-center type--smaller">{{ badge }}</span>
+        </div>
+      {%- endfor -%}
+    </div>
+  {%- endif -%}

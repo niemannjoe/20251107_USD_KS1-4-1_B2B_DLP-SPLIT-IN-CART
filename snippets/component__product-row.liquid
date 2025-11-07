@@ -1,0 +1,921 @@
+<!-- snippets/component__product-row.liquid -->
+{% comment %}
+  This is a standard product thumbnail snippet used to display product information in a grid or list view.
+
+  Accepts:
+  - product: {Object} The liquid product object containing all the product details.
+  - show_see_more: {boolean} Shows a button to see more variants.
+  - show_see_all: {boolean} Shows a toggle to expand variant options if set to true.
+  - show_details_button: {boolean} Shows a button to view product details if set to true.
+  - show_table: {boolean} Shows a table with product details if set to true.
+  - enable_dynamic_sticky: {boolean} If row top will be dynamic based on header height.
+  - enable_description: {boolean} Shows a description if set to true.
+  - is_overlay: {boolean} If in an overlay drawer will not open when cart changes.
+
+  Usage:
+    {% render 'component__product-row',
+      product: product,
+      show_see_more: true,
+      show_see_all: true,
+      show_details_button: true,
+      show_table: true,
+      enable_dynamic_sticky: true,
+      enable_description: false,
+      is_overlay: false
+    %}
+
+  Globals:
+  - account_hide_product_tag: {string} Sets the tag that hides products from certain accounts.
+  - restricted_style: {string} Sets the style for restricted content.
+  - enable_animations: {boolean} Enables animations if set to true.
+  - product_card_border_style: {string} Sets the border style of thumbnails.
+  - product_card_color_border: {string} Sets the border color.
+  - product_card_color_scheme: {string} Sets the color scheme of thumbnails.
+  - product_card_ratio: {string} Sets the aspect ratio of thumbnails.
+  - thumbnails_object: {string} Sets the image object sizing.
+  - product_card_title_capitilization: {string} Sets the capitilization for thumbnail titles.
+  - product_card_title_font: {string} Sets the font family for titles.
+  - type_separator: {string} Sets the type of seperator between text.
+  - product_card_savings_badge: {string} Can be set to 'dollar', 'percent', or 'none' to display savings badge.
+  - product_card_stock_threshold: {number} Sets the threshold for when to show stock count.
+  - enable_quick_desktop: {boolean} Enables quick add on desktop if set to true.
+  - enable_quick_mobile: {boolean} Enables quick add on mobile if set to true.
+  - product_card_enable_type: {boolean} Displays product type if set to true.
+  - product_card_enable_vendor: {boolean} Displays vendor if set to true.
+  - product_card_enable_count: {boolean} Displays variant count if set to true.
+  - product_card_enable_tagline: {boolean} Display a short description.
+  - product_card_enable_review_text: {boolean} Display a review badge.
+  - product_card_enable_cart_count: {boolean} Display the number of items in the cart if set to true.
+  - product_card_enable_swatches: {boolean} Display swatches if set to true.
+
+  Recommendations:
+  - This snippet is best used while looping through products, for example on collection product grids. It provides a consistent way to display product information across different sections of the site.
+{% endcomment %}
+
+{%  unless product.tags contains 'hide-price' %}
+
+{% comment %} Check if approved customer {% endcomment %}
+{% liquid
+  assign is_approved_customer = false
+  if customer and settings.account_matching_tags == blank
+    assign is_approved_customer = true
+  endif
+  if customer.tags contains settings.account_matching_tags
+    assign is_approved_customer = true
+  endif
+  if settings.account_match_b2b and customer.b2b?
+    assign is_approved_customer = true
+  endif
+%}
+
+{% comment %} Set product url {% endcomment %}
+{% liquid
+  if settings.enable_collection_url
+    assign url = product.url | within: collection
+  else
+    assign url = product.url
+  endif
+%}
+
+{% comment %} Set badge colors {% endcomment %}
+{% liquid
+  capture badge_background
+    if settings.product_card_badge_scheme == 'light_outline' or settings.product_card_badge_scheme == 'dark_outline'
+      echo 'trasnsparent'
+    else
+      echo settings.product_card_badge_scheme
+    endif
+  endcapture
+
+  capture badge_foreground
+    if settings.product_card_badge_scheme == 'light_outline'
+      echo 'light'
+    elsif settings.product_card_badge_scheme == 'dark_outline'
+      echo 'dark'
+    else
+      echo settings.product_card_badge_scheme
+    endif
+  endcapture
+%}
+
+{% comment %} Set values {% endcomment %}
+{% capture crop %}
+  {% if settings.product_card_crop == "cover" %}
+    object-cover
+  {% else %}
+    object-contain
+  {% endif %}
+{% endcapture %}
+
+{% capture product_price %}
+  <div 
+    class="
+      flex flex-col flex-wrap items-end
+    ">
+
+    {% comment %} Prices {% endcomment %}
+    <div>
+      {% comment %} Starting price {% endcomment %}
+      <span>
+        {% if product.price_varies and settings.price_range == "show_starting_price" %}
+          <span>
+            {{ 'labels.from' | t }}
+          </span>
+        {% endif %}
+        {% render 'component__format-price', price: product.price_min %}
+      </span>
+
+      {% comment %} If showing range {% endcomment %}
+      {% if product.price_varies and settings.price_range == "show_range" %}
+        <span>
+          - 
+          {% render 'component__format-price', price: product.price_max %}
+        </span>
+      {% endif %}
+    </div>
+
+    {% comment %} Sale price {% endcomment %}
+    <div>
+      {% if product.compare_at_price_max > 0 %}
+        <span class="opacity-50">
+          <s>
+            {% render 'component__format-price', price: product.compare_at_price_min %}
+            {% if product.compare_at_price_max > product.compare_at_price_min %}
+              - 
+              {% render 'component__format-price', price: product.compare_at_price_max %}
+            {% endif %}
+          </s>
+        </span>
+      {% endif %}
+    </div>
+
+  </div>
+
+  {% if product.selected_or_first_available_variant.unit_price %}
+    <span class="type--small opacity-50">
+      {% render 'component__format-price', price: product.selected_or_first_available_variant.unit_price %} /
+      {{ product.selected_or_first_available_variant.unit_price_measurement.reference_value }}
+      {{ product.selected_or_first_available_variant.unit_price_measurement.reference_unit }}
+    </span>
+  {% endif %}
+{% endcapture %}
+
+{% capture product_add %}
+  {% unless show_table %}
+    <div class="">
+      {% if product.has_only_default_variant and product.selected_or_first_available_selling_plan_allocation == nil %}
+
+        {% comment %} Adjust quantity {% endcomment %}
+        {% for variant in product.variants %}
+          {% render 'component__variant-increment-v3',
+            variant: variant,
+            container_class: 'gap-4 md:gap-10 md:max-w-[300px]',
+            input_class: 'max-w-[150px]',
+            is_overlay: is_overlay
+          %}
+        {% endfor %}
+
+      {% else %}
+
+        {% comment %} Open quick add overlay {% endcomment %}
+        <button 
+          class="btn btn--primary !w-full min-w-[150px]"
+          :class="{
+            'btn--loading': button_loading
+          }"
+          type="button" 
+          role="button"
+          @click="
+            button_loading = true; 
+            fetchAndRenderQuickAdd('{{ product.handle }}');
+            setTimeout(function(){ button_loading = false}, 500);
+          ">
+          <div 
+            class="btn__content">
+            {{ 'actions.add_to_cart' | t }}
+          </div>
+          <div class="btn__spinner">
+            {% render 'component__icon', icon: 'spinner', size: '24', class: '' %}
+          </div>
+        </button>
+        
+      {% endif %}
+    </div>
+  {% endunless %}
+{% endcapture %}
+
+{% capture variant_table %}
+  {% comment %} Button to expand view {% endcomment %}
+  {% if show_see_all %}
+    <button 
+      class="border--t-width color__border-divider-1 color__link group-hover/product:color__bg-shade-1 hover:color__bg-shade-1 flex !w-full !items-start !justify-between py-2"
+      @click="expanded = true"
+      x-show="!expanded">
+      <span class="flex grow items-center text-left">
+        {% render 'component__icon', icon: 'chevron-down', size: '', class: 'mr-1' %} {{ 'actions.view_all_options' | t }} ({{ product.variants.size }}) 
+      </span>
+    </button>
+  {% endif %}
+
+  {% comment %} Variant table {% endcomment %}
+   {% if product.tags contains "LogoUpload" %}
+            <style>
+              .logo-preview {
+                display: none !important;
+              }
+              .logo-preview.is-shown {
+                display: block !important;
+              }
+            </style>
+
+            <script>
+              const ITEM_LOGO_POSITION = {
+                {%- for logoPosition in product.metafields.custom.logo_positions.value -%}
+                  {%- assign logoPositionTitle = logoPosition | split: ":" | first | strip -%}
+                  {%- assign logoValues = logoPosition | split: ":" | last | strip | split: "," -%}
+                  {{logoPositionTitle | json}}: {
+                      xPos: {{logoValues[0] | strip}},
+                      yPos: {{logoValues[1] | strip}},
+                      width: {{logoValues[2] | strip}},
+                      height: {{logoValues[3] | strip}},
+                      img: {{logoValues[4] | strip | json}},
+                      {%- if logoValues[5] -%}
+                      rotation: {{logoValues[5] | strip}}
+                      {%- endif -%}
+                  },
+                {%- endfor -%}
+              };
+            </script>
+      
+              {% for previews in colors_preview_images %}
+                {% assign split_previews = previews | split: ',,' %}
+                {% assign preview = split_previews.first %}
+                {% if split_previews.last %}
+                  {% assign preview_2 = split_previews.last %}
+                {% else %}
+                  {% assign preview_2 = preview %}
+                {% endif %}
+                <div
+                  class="product-gallery__carousel-item {% if forloop.index0 == 0 %}is-selected{% endif %} {% if is_media_filtered %}is-filtered{% endif %}"
+                  tabindex="-1"
+                  data-media-id="logo-preview_{{ colors_names[forloop.index0] }}"
+                  data-media-type="image">
+                  <div class="product-gallery__size-limiter" style="max-width: 600px">
+                    {%- capture supported_sizes -%}
+                      {%- render 'image-size', sizes: '400,500,600,700,800,900,1000,1100,1200', image: media -%}
+                    {%- endcapture -%}
+                    {%- assign image_url = preview -%}
+  
+                    <div style="padding-bottom: 100%">
+                      <img
+                        class="img-preview_canvas lazyload image--fade-in product-gallery__image"
+                        width="600"
+                        height="600"
+                        data-src="{{ image_url }}"
+                        data-widths="[{{ supported_sizes }}]"
+                        data-sizes="auto"
+                        data-zoom="{{ image_url }}"
+                        data-zoom-width="1400"
+                        data-media-id="logo-preview_{{ colors_names[forloop.index0] }}"
+                        alt="#"
+                        style="max-width: 100%;" />
+                      <canvas
+                        class="logo-preview_canvas"
+                        data-media-id="logo-preview_{{ colors_names[forloop.index0] }}"
+                        data-media-option="{{ colors_names[forloop.index0] }}"
+                        width="600"
+                        height="600"
+                        style="max-width: 100%; display: none;"></canvas>
+                      <script>
+                        window["logo-preview_{{ colors_names[forloop.index0] }}"] = {
+                          "preview-1": "{{ preview }}",
+                          "preview-2": "{{ preview_2 }}"
+                        }
+
+                        window.document.addEventListener("DOMContentLoaded", () => {
+                          const checkedInput = document.querySelector(
+                            'input[name="logo-position"][checked]'
+                          );
+                          if (checkedInput) {
+                            const valueInput = checkedInput.value;
+                            LOGO_POSITION = ITEM_LOGO_POSITION[valueInput];
+                          }
+                          if (typeof firstLoadImage === "function") 
+                            firstLoadImage("logo-preview_{{ colors_names[forloop.index0] }}")
+                        })
+                      </script>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            {% endif %}
+  {% if show_table %}
+    
+    {% comment %} Variants {% endcomment %}
+    {% for variant in product.variants %}
+      <div 
+        class="
+          hover:color__bg-shade-1 flex items-center justify-between
+          {% unless forloop.first %}border--t-width color__border-divider-1{% endunless %} 
+        "
+        :class="{ 'color__bg-shade-1': cartVariantIds.has({{ variant.id }}) }"
+        {% if show_see_all %}
+          x-show="expanded"
+          x-cloak
+        {% endif %}
+        {% if show_see_more and forloop.index > 6 %}
+          x-show="expanded"
+          x-cloak
+        {% endif %}>
+
+        {% comment %} Details {% endcomment %}
+        <div class="flex h-full flex-row items-stretch justify-between md:w-2/3">
+
+          {% comment %} Image, title, sku {% endcomment %}
+          <div class="flex flex-row items-center gap-2 py-2 md:w-1/3">
+
+            {% comment %} Image {% endcomment %}
+            {% if variant.image %}
+              <div 
+                class="border--radius border--width color__border-divider-1 h-10 w-10 shrink-0 cursor-zoom-in overflow-hidden"
+                @click="
+                  button_loading = true; 
+                  fetchAndRenderQuickGallery('{{ product.handle }}'); 
+                  setTimeout(function(){ button_loading = false}, 500);
+                ">         
+                {% render 'component__image', 
+                  image: variant.image,
+                  max_width: 80,
+                  background_class: 'h-full color__bg-shade-2',
+                  container_class: 'h-full',
+                  image_class: '',
+                  ratio_class: '',
+                  crop_class: crop,
+                  enable_lazy_load: true,
+                  enable_2x: true
+                %}
+              </div>
+            {% else %}
+              <div 
+                class="border--radius border--width color__border-divider-1 h-10 w-10 shrink-0 cursor-zoom-in overflow-hidden"
+                @click="
+                  button_loading = true; 
+                  fetchAndRenderQuickGallery('{{ product.handle }}'); 
+                  setTimeout(function(){ button_loading = false}, 500);
+                ">         
+              </div>
+            {% endif %}
+
+            {% comment %} Title and details {% endcomment %}
+            <div class="flex w-auto flex-col items-start justify-center pr-4">
+              <a 
+                class="type--smaller no-underline"
+                href="{{ url }}">
+                {% unless variant.title == "Default Title" %}
+                  {{ variant.title }}
+                {% endunless %}
+              </a>
+              {% if variant.sku and settings.product_table_enable_sku %}
+                <span class="type--smaller opacity-75">
+                  {{ variant.sku }}
+                </span>
+              {% endif %}
+
+              {% if settings.product_table_enable_inventory %}
+                <div class="flex flex-col text-right md:hidden">
+                  <span class="type--smaller opacity-75">
+                    {{ variant.inventory_quantity }} {{ 'info.in_stock' | t | downcase }}
+                  </span>
+                </div>
+              {% endif %}
+
+              <div class="flex flex-col text-right md:hidden">
+                <span class="type--smaller opacity-75">
+                  {% render 'component__format-price', price: variant.price %} /{{ 'labels.each' | t | downcase }}
+                </span>
+              </div>
+
+            </div>
+          </div>
+
+          {% comment %} Metafields,inventory, prices {% endcomment %}
+          <div class="border--l-width color__border-divider-1 hidden flex-wrap gap-2 overflow-auto px-4 py-2 md:flex md:w-2/3 md:content-start lg:flex-row">
+
+            {% comment %} Metafields {% endcomment %}
+            {% if settings.product_table_variant_metafields %}
+              {% assign all_metafields = settings.product_table_variant_metafields | split: ',' %}
+              {% assign all_metafields_labels = settings.product_table_variant_metafields_labels | split: ',' %}
+              {% for metafield_string in all_metafields %}
+                <div class="type--smaller w-[25%] min-w-16">
+                  {% assign metafield_parts = metafield_string | strip | split: '.' %}
+                  {% if metafield_parts.size == 2 %}
+                    {% assign namespace = metafield_parts[0] | strip %}
+                    {% assign key = metafield_parts[1] | strip %}
+                    {% if variant.metafields[namespace][key].value %}
+                      {% if all_metafields_labels[forloop.index0] %}
+                        <span class="opacity-50">{{ all_metafields_labels[forloop.index0] }}:</span><br/>
+                      {% endif %}
+                      {{ variant.metafields[namespace][key].value }}
+                    {% endif %}
+                  {% endif %}
+                </div>
+              {% endfor %}
+            {% endif %}
+
+            {% comment %} Inventory count and price {% endcomment %}
+            <div class="flex flex-grow justify-start gap-2">
+              {% if settings.product_table_enable_inventory %}
+                <div class="flex w-[25%] min-w-16 flex-col">
+                  <span class="type--smaller">
+                    {{ variant.inventory_quantity }}
+                  </span>
+                  <span class="type--smaller opacity-75">
+                    {{ 'info.in_stock' | t | downcase }}
+                  </span>
+                </div>
+              {% endif %}
+
+              <div class="flex w-[25%] min-w-16 flex-col">
+                <span class="type--smaller">
+                  {% render 'component__format-price', price: variant.price %}
+                </span>
+                <span class="type--smaller opacity-75">
+                  /{{ 'labels.each' | t | downcase }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {% comment %} Actions and totals {% endcomment %}
+        <div class="flex h-full shrink-0 flex-col items-end justify-between gap-4 text-right md:w-1/3 md:max-w-[400px]">
+          <div class="border--l-width color__border-divider-1 flex h-full w-full items-center justify-end py-2 pl-4">
+            {% render 'component__variant-increment-v3',
+              variant: variant,
+              show_totals: true,
+              parent_class: 'w-full',
+              container_class: 'gap-4 md:gap-10 md:max-w-[400px]',
+              input_class: 'max-w-[150px]',
+              is_overlay: is_overlay
+            %}
+          </div>
+        </div>
+
+      </div>
+    {% endfor %}
+
+    {% comment %} Button to see all variants {% endcomment %}
+    {% if show_see_more and product.variants.size > 6 %}
+      <button 
+        class="border--t-width color__border-divider-1 color__link group-hover/product:color__bg-shade-1 hover:color__bg-shade-1 flex !w-full !items-start !justify-between py-2"
+        @click="expanded = true"
+        x-show="!expanded">
+        <span class="flex grow items-center text-left">
+          {% render 'component__icon', icon: 'chevron-down', size: '16', class: 'mr-1' %} {{ 'actions.view_all_options' | t }} ({{ product.variants.size }}) 
+        </span>
+      </button>
+    {% endif %}
+
+    {% comment %} Total {% endcomment %}
+    <div 
+      class="border--t-width color__border-divider-1 sticky bottom-0 flex justify-end {% unless section.settings.color_scheme %}color__bg-body{% endunless %} {{ section.settings.color_scheme }}"
+      x-show="productCartSummary"
+      x-cloak>
+      <div 
+        class="md:border--l-width color__border-divider-1 flex w-full items-center justify-end gap-4 py-2 pl-4 md:w-1/3 md:max-w-[400px] md:justify-between md:py-4">
+        <span class="type--smaller hidden gap-1 opacity-75 md:flex">
+          <span x-html="productCartSummary ? productCartSummary.quantity : 0"></span>
+          {{ 'labels.in_cart' | t | downcase }}
+        </span>
+        <span class="">
+          {{ 'labels.total' | t }}:
+          <span x-html="productCartSummary ? Shopify.formatMoney(productCartSummary.total_final_line_price) : Shopify.formatMoney(0)"></span>
+        </span>
+      </div>
+    </div>
+
+  {% endif %}
+{% endcapture %}
+
+{% capture product_item %}
+  <div 
+    class="group/product relative w-full
+    {% unless section.settings.color_scheme %}color__bg-body{% endunless %} {{ section.settings.color_scheme }}"
+    x-data="{ 
+      button_loading: false,
+      expanded: true, {% comment %}This is where you adjust the product table as expanded or closed. Changed by Matt.{% endcomment %}
+      // Computed properties for performance optimization
+      get cartVariantIds() {
+        return new Set((cart.items || []).map(item => item.variant_id));
+      },
+      get productCartSummary() {
+        return cart.summary ? cart.summary[{{ product.id }}] : null;
+      }
+    }">
+    <div class="border--t-width color__border-divider-1 relative z-10 flex items-start gap-2 md:gap-4">
+
+      {% comment %} Product image {% endcomment %}
+      <div 
+        class="sticky top-0 z-10 cursor-zoom-in py-4"
+        {% if settings.header_position == 'sticky' and enable_dynamic_sticky %}
+          :style="{
+            top: {% if section.settings.filter_placement == 'top' %}filter_group_height{% else %}header_group_height{% endif %} + 'px'
+          }"
+        {% endif %}
+        @click="
+          button_loading = true; 
+          fetchAndRenderQuickGallery('{{ product.handle }}'); 
+          setTimeout(function(){ button_loading = false}, 500);
+        ">
+        <div class="border--radius border--width color__border-divider-1 relative h-10 w-10 overflow-hidden md:h-16 md:w-16 {% unless section.settings.color_scheme %}color__bg-body{% endunless %} {{ section.settings.color_scheme }}">
+          {% render 'component__image', 
+            image: product.featured_image,
+            max_width: 256,
+            background_class: 'color__bg-shade-2',
+            image_class: 'w-full h-full',
+            ratio_class: 'aspect-[1/1]',
+            crop_class: crop,
+            enable_lazy_load: true
+          %}
+          <div class="color__light animation-300 absolute left-0 top-0 flex h-full w-full items-center justify-center bg-black bg-opacity-25 opacity-0 group-hover/product:opacity-100">
+            <span 
+              x-show="!button_loading">
+              {% render 'component__icon', icon: 'expand-rectangle', size: '24', class: '' %}
+            </span>
+            <div 
+              class="flex h-full w-full"
+              x-show="button_loading"
+              x-cloak>
+              {% render 'component__icon', icon: 'spinner', size: '24', class: 'm-0 m-auto animate-spinslow' %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% comment %} Details and variants {% endcomment %}
+      <div class="flex w-full flex-wrap justify-between">
+
+        {% comment %} Details {% endcomment %}
+        <div 
+          class="
+            sticky top-0 z-10 flex 
+            w-full justify-between
+            {% if show_table %}border--b-width color__border-divider-1{% endif %}
+            {% unless section.settings.color_scheme %}color__bg-body{% endunless %} {{ section.settings.color_scheme }}
+          "
+          {% if settings.header_position == 'sticky' and enable_dynamic_sticky %}
+            :style="{
+              top: {% if section.settings.filter_placement == 'top' %}filter_group_height{% else %}header_group_height{% endif %} + 'px'
+            }"
+          {% endif %}>
+
+          {% comment %} Details {% endcomment %}
+          <div class="flex flex-row justify-between md:w-2/3">
+            <div class="flex flex-col gap-2 py-2 md:w-1/3">
+
+              {% comment %} Title {% endcomment %}
+              <a 
+                class="type--base no-underline"
+                href="{{ url }}">
+                {{ product.title }}
+              </a>
+
+              {% comment %} Tagline {% endcomment %}
+              {% if settings.product_card_enable_tagline and product.metafields.descriptors.subtitle %}
+                <p class="type--smaller opacity-75">
+                  {{ product.metafields.descriptors.subtitle }}
+                </p>
+              {% endif %}
+
+              {% comment %} Swatches {% endcomment %}
+              {% if settings.product_card_enable_swatches %}
+                {% for product_option in product.options_with_values %}
+                  {% assign downcase_option_name = product_option.name | downcase %}
+                  {% if 
+                    downcase_option_name == color or 
+                    downcase_option_name == "colour" or
+                    downcase_option_name == "color" or
+                    downcase_option_name == "colore" or
+                    downcase_option_name == "farbe" or
+                    downcase_option_name == "couleur" 
+                  %}
+                    <div 
+                      class="flex w-full flex-wrap items-center gap-1">
+                      {% for value in product_option.values limit: 6 %}
+                        {% render 'component__option-swatch', 
+                          value: value,
+                          option_name: downcase_option_name,
+                          enable_swatches: settings.product_card_enable_swatches
+                        %}
+                      {% endfor %}
+                      {% if product_option.values.size > 6 %}
+                        {% assign remaining = product_option.values.size | minus: 6 %}
+                        <span class="type--smaller opacity-50">+{{ remaining }}</span>
+                      {% endif %}
+                    </div>
+                  {% else %}
+                    {% assign has_swatch = false %}
+                    {% for value in product_option.values limit: 6 %}
+                      {% if value.swatch %}
+                        {% assign has_swatch = true %}
+                      {% endif %}
+                    {% endfor %}
+                    {% if has_swatch %}
+                      <div 
+                        class="flex w-full flex-wrap items-center gap-1">
+                        {% for value in product_option.values limit: 6 %}
+                          {% render 'component__option-swatch', 
+                            value: value,
+                            option_name: downcase_option_name,
+                            enable_swatches: settings.product_card_enable_swatches
+                          %}
+                        {% endfor %}
+                        {% if product_option.values.size > 6 %}
+                          {% assign remaining = product_option.values.size | minus: 6 %}
+                          <span class="type--smaller opacity-50">+{{ remaining }}</span>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+
+              {% comment %} Actions {% endcomment %}
+              <div class="flex flex-wrap gap-1">
+                {% if show_details_button %}
+                  <a 
+                    class="btn btn--secondary btn--smaller"
+                    href="{{ url }}">
+                    {{ 'actions.see_details' | t }}
+                  </a>
+                {% endif %}
+              </div>
+
+            </div>
+            <div class="border--l-width color__border-divider-1 hidden gap-2 px-4 py-4 md:flex md:w-2/3 md:flex-col">
+
+              {% comment %} Badges {% endcomment %}
+              <div class="flex flex-wrap gap-1">
+
+                {% comment %} Stock count {% endcomment %}
+                {% if settings.product_card_stock_threshold > 0 %}
+                  {% assign product_qty = 0 %}
+                  {% for variant in product.variants %}
+                    {% if variant.inventory_quantity > 0 %}
+                      {% assign product_qty = product_qty | plus: variant.inventory_quantity %}
+                    {% endif %}
+                  {% endfor %}
+                  {% if product_qty < settings.product_card_stock_threshold and product_qty > 0 %}
+                    {% capture badge %}
+                      <span class="mr-2 inline-flex h-2 w-2">
+                        <span class="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-current bg-opacity-50"></span>
+                        <span class="inline-flex h-2 w-2 rounded-full bg-current bg-opacity-50"></span>
+                      </span>
+                      <span>{{ product_qty }} {{ 'info.in_stock' | t | downcase }}</span>
+                    {% endcapture %}
+                    {% render 'component__badge', 
+                      background: badge_background,
+                      text: badge_foreground,
+                      border: 'divider-1',
+                      content: badge 
+                    %}
+                  {% endif %}
+                {% endif %}
+
+                {% comment %} Sold out badge {% endcomment %}
+                {% if settings.product_card_sold_out_badge %}
+                  {% if product.available == false %}
+                    {% capture badge_content %}
+                      {{ 'labels.sold_out' | t }}
+                    {% endcapture %}
+                    {% render 'component__badge', 
+                      background: badge_background,
+                      text: badge_foreground,
+                      border: 'divider-1',
+                      content: badge_content %}
+                  {% endif %}
+                {% endif %}
+
+                {% comment %} Savings {% endcomment %}
+                {% if settings.product_card_savings_badge != "none" %}
+                  {% if product.price < product.compare_at_price %}
+                    {% if settings.product_card_savings_badge == "percent" %}
+                      {% capture badge_content %}{{ discount_percentage }}{% endcapture %}
+                      {% capture a %}{{ product.compare_at_price | minus: product.price }} {% endcapture %}
+                      {% capture b %}{{ a | times: 100 }} {% endcapture %} 
+                      {% capture discount_percentage %}{{ b | divided_by: product.compare_at_price | round }} {% endcapture %} 
+                      {% capture badge_content %} {{ 'labels.save' | t }} {{ discount_percentage | strip | append: '%' }} {% endcapture %}
+                    {% else %}
+                      {% capture discount_amount %}{{ product.compare_at_price | minus: product.price }}{% endcapture %}
+                      {% capture badge_content %}
+                        {{ 'labels.save' | t }} {% render 'component__format-price', price: discount_amount %}
+                      {% endcapture %}
+                    {% endif %}
+                    {% render 'component__badge', 
+                      background: badge_background,
+                      text: badge_foreground,
+                      border: 'divider-1',
+                      content: badge_content 
+                    %}
+                  {% endif %}
+                {% endif %}
+                
+                {% comment %} Rating {% endcomment %}
+                 {% if settings.product_card_enable_review_text %}
+                  {% render 'component__rating', 
+                    product: product,
+                    enable_stars: true,
+                    enable_badge: true,
+                    badge_background: badge_background,
+                    badge_text: badge_foreground,
+                    badge_border: 'divider-1'
+                  %}
+                {% endif %} 
+
+                {% comment %} Type {% endcomment %}
+                {% if settings.product_card_enable_type and product.type.size > 0 %}
+                  {% render 'component__badge', 
+                    background: badge_background,
+                    text: badge_foreground,
+                    border: 'divider-1',
+                    content: product.type 
+                  %}
+                {% endif %}
+
+                {% comment %} Vendor {% endcomment %}
+                {% if settings.product_card_enable_vendor and product.vendor.size > 0 %}
+                  {% render 'component__badge', 
+                    background: badge_background,
+                    text: badge_foreground,
+                    border: 'divider-1',
+                    content: product.vendor 
+                  %}
+                {% endif %}
+
+                {% comment %} Tags {% endcomment %}
+                {% for tag in product.tags %}
+                  {% if tag contains "badge_" %}
+                    {% capture badge_content %}{{ tag | remove: "badge_" }}{% endcapture %}
+                    {% render 'component__badge', 
+                      background: badge_background,
+                      text: badge_foreground,
+                      border: 'divider-1',
+                      content: badge_content %}
+                  {% endif %}
+                {% endfor %}
+                
+                {% comment %} Metafields {% endcomment %}
+                {% assign metafield = product.metafields.custom.badge %}
+                {% if metafield %}
+                  {% capture badge_content %}{{ metafield }}{% endcapture %}
+                  {% render 'component__badge',
+                    background: badge_background,
+                    text: badge_foreground,
+                    border: 'divider-1',
+                    content: badge_content %}
+                {% endif %}
+                
+              </div> 
+
+              {% comment %} Description {% endcomment %}
+              {% if settings.product_table_enable_description and enable_description %}
+                <div class="type--smaller">
+                  {{ product.description | strip_html | truncate: 200 }}
+                  {% if product.description.size > 200 %}
+                    <a 
+                      class="color__link"
+                      href="{{ url }}">
+                      {{ 'actions.read_more' | t }}
+                    </a>
+                  {% endif %}
+                </div>
+              {% endif %}
+
+              {% comment %} Metafields {% endcomment %}
+              <div class="hidden w-full gap-2 md:flex">
+                {% if settings.product_table_product_metafields %}
+                  {% assign all_metafields = settings.product_table_product_metafields | split: ',' %}
+                  {% assign all_metafields_labels = settings.product_table_product_metafields_labels | split: ',' %}
+                  {% for metafield_string in all_metafields %}
+                    {% assign metafield_parts = metafield_string | strip | split: '.' %}
+                    {% if metafield_parts.size == 2 %}
+                      {% assign namespace = metafield_parts[0] | strip %}
+                      {% assign key = metafield_parts[1] | strip %}
+                      {% if product.metafields[namespace][key].value %}
+                        <div class="type--smaller w-[25%] min-w-16">
+                          {% if all_metafields_labels[forloop.index0] %}
+                            <span class="opacity-50">{{ all_metafields_labels[forloop.index0] }}:</span><br/>
+                          {% endif %}
+                          {{ product.metafields[namespace][key].value }}
+                        </div>
+                      {% endif %}
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+              </div>
+             
+
+            </div>
+          </div>
+
+          {% comment %} Prices and actions {% endcomment %}
+          <div class="flex flex-col items-end justify-between gap-4 py-4 text-right">
+            {% if is_approved_customer == true %}
+              {{ product_price }}
+              {{ product_add }}
+            {% else %}
+              {% unless product.tags contains settings.account_hide_price_tag %}
+                {{ product_price }}
+                {{ product_add }}
+              {% endunless %}
+            {% endif %}
+          </div>
+
+        </div>
+        
+        {% comment %} Variants {% endcomment %}
+        <div 
+          class="flex w-full flex-col">
+
+          {% if is_approved_customer == true %}
+            {{ variant_table }}
+          {% else %}
+            {% unless product.tags contains settings.account_hide_price_tag %}
+              {{ variant_table }}
+            {% endunless %}
+          {% endif %}
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+{% endcapture %}
+
+{% capture product_placeholder %}
+  {% if settings.restricted_style == 'placeholder' %}
+    <div 
+      class="group/product relative w-full {% unless section.settings.color_scheme %}color__bg-body{% endunless %} {{ section.settings.color_scheme }}"
+      x-data="{ 
+        button_loading: false,
+        expanded: false
+      }">
+      <div class="border--t-width color__border-divider-1 relative z-10 flex items-start gap-2 md:gap-4">
+    
+        {% comment %} Image {% endcomment %}
+        <div 
+          class="sticky top-0 z-10 py-4 {% unless section.settings.color_scheme %}color__bg-body{% endunless %} {{ section.settings.color_scheme }}"
+          {% if settings.header_position == 'sticky' and enable_dynamic_sticky %}
+            :style="{
+              top: {% if section.settings.filter_placement == 'top' %}filter_group_height{% else %}header_group_height{% endif %} + 'px'
+            }"
+          {% endif %}
+        >
+          <div 
+            class="
+              border--radius color__bg-shade-2 flex h-10 w-10 items-center overflow-hidden md:h-16 md:w-16
+              {{ settings.product_card_color_border }} 
+            ">
+          </div>
+        </div>
+
+        {% comment %} Login to view {% endcomment %}
+        <div class="flex w-full flex-wrap justify-between">
+          <div class="sticky top-0 z-10 flex w-full justify-between py-4 {% unless section.settings.color_scheme %}color__bg-body{% endunless %} {{ section.settings.color_scheme }}"
+            {% if settings.header_position == 'sticky' and enable_dynamic_sticky %}
+              :style="{
+                top: {% if section.settings.filter_placement == 'top' %}filter_group_height{% else %}header_group_height{% endif %} + 'px'
+              }"
+            {% endif %}>
+            <div class="flex flex-col justify-between gap-2">
+              <a
+                class="no-underline"
+                {% if routes.account_login_url contains 'https' %}
+                  href="{{ routes.account_login_url }}"
+                {% else %}
+                  href="{{ routes.account_login_url }}"
+                  @click.prevent="openAccount()"
+                {% endif %}>
+                {{ 'actions.login_to_view' | t }}
+              </a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  {% endif %}
+{% endcapture %}
+
+{% if is_approved_customer == true %}
+  {{ product_item }}
+{% else %}
+  {% if product.tags contains settings.account_hide_product_tag %}
+    {{ product_placeholder }}
+  {% else %}
+    {{ product_item }}
+  {% endif %}
+{% endif %}
+{% endunless %}

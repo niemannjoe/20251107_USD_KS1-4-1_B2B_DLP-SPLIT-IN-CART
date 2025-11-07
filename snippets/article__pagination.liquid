@@ -1,0 +1,54 @@
+<!-- snippets/article__pagination.liquid -->
+{% comment %}
+  Pagination for a blog article.
+
+  Accepts:
+  - blocksettings: {Object} Liquid object containing block settings.
+
+  Usage:
+    {% render 'article__pagination',
+      blocksettings: block.settings
+    %}
+
+  Recommendations:
+  - Render this snippet on an article template.
+{% endcomment %}
+
+<section
+  class="
+    flex gap-4
+    {{ blocksettings.layout_x_alignment }}
+    {{ blocksettings.color_border }}
+    {{ blocksettings.style_border }}
+  "
+  style="
+    padding-top:{{ blocksettings.spacing_top }}px;
+    padding-bottom:{{ blocksettings.spacing_bottom }}px;
+  "
+>
+  {% if blog.previous_article %}
+    <div>
+      <a
+        class="btn btn--secondary btn--smaller"
+        href="{{ blog.previous_article.url }}"
+        title="{{ blog.previous_article.title }}"
+      >
+        {% render 'component__icon', icon: 'chevron-left', size: '14', class: 'mr-1' %}
+        {{ 'labels.previous_article' | t }}
+      </a>
+    </div>
+  {% endif %}
+
+  {% if blog.next_article %}
+    <div>
+      <a
+        class="btn btn--secondary btn--smaller"
+        href="{{ blog.next_article.url }}"
+        title="{{ blog.next_article.title }}"
+      >
+        {{ 'labels.next_article' | t }}
+        {% render 'component__icon', icon: 'chevron-right', size: '14', class: 'ml-1' %}
+      </a>
+    </div>
+  {% endif %}
+</section>

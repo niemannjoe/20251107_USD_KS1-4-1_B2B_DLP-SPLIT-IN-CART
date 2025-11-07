@@ -1,0 +1,200 @@
+<!-- snippets/component__product-stack.liquid -->
+{% comment %}
+  This file is a component for displaying an upsell item in a vertical stack. It is primarily used for cart upsells to increase the Average Order Value (AOV) by highlighting products that are an easy upsell.
+
+  Accepts:
+  - product: {Object} The liquid product object that needs to be displayed as an upsell item.
+
+  Globals:
+  - account_hide_product_tag: {string} Sets the tag that hides products from certain accounts.
+  - product_card_enable_tagline: {boolean} Display a short description.
+
+  Usage:
+    {% render 'component__product-stack',
+      product: product
+    %}
+
+  Recommendations:
+  - This component is best used to display products that are likely to be added to the cart along with the current product. It is recommended to use this for products that are an easy upsell to increase the AOV.
+{% endcomment %}
+
+{% comment %} Check if approved customer {% endcomment %}
+{% liquid
+  assign is_approved_customer = false
+  if customer and settings.account_matching_tags == blank
+    assign is_approved_customer = true
+  endif
+  if customer.tags contains settings.account_matching_tags
+    assign is_approved_customer = true
+  endif
+  if settings.account_match_b2b and customer.b2b?
+    assign is_approved_customer = true
+  endif
+%}
+
+{% capture product_price %}
+  {% if settings.product_card_show_prices %}
+    <span>{% render 'component__format-price', price: product.price %}</span>
+  {% endif %}
+{% endcapture %}
+
+{% capture product_add %}
+  <div 
+    class="flex gap-1">
+    <div>
+      <form 
+        class="flex flex-wrap" 
+        action="/cart/add" 
+        method="post" 
+        enctype="multipart/form-data"
+        x-data="{
+          current_variant_id: {{ product.variants.first.id | default: 0 }},
+          current_variant_selling_plan_id: 0,
+          quantity: 1,
+        }"
+        @submit.prevent="
+          addCartItem(current_variant_id, current_variant_selling_plan_id, quantity, false); 
+          button_loading = true; 
+          setTimeout(function(){ button_loading = false}, 500);
+        ">
+    
+        {% comment %} Add to cart {% endcomment %}
+        {% if product.has_only_default_variant and product.selected_or_first_available_selling_plan_allocation == nil %}
+          <input 
+            name="id" 
+            type="hidden"
+            :value="current_variant_id">
+          <input 
+            id="quantity_c_upsell_grid_item_{{ product.variants.first.id }}-{{ section.id }}-{{ id }}"
+            name="quantity" 
+            type="hidden" 
+            value="1" 
+            min="1"
+            max="" 
+            x-model="quantity">
+          <button 
+            class="btn btn--secondary btn--smaller"
+            type="submit" 
+            role="button">
+            <div 
+              class="btn__content">
+              {{ 'actions.add' | t }}
+            </div>
+            <div 
+              class="btn__spinner">
+              {% render 'component__icon', icon: 'spinner', size: '24', class: '' %}
+            </div>
+          </button>
+
+        {% comment %} Open quick add overlay {% endcomment %}
+        {% else %}
+          <button 
+            class="btn btn--secondary btn--smaller" 
+            type="button" 
+            role="button"
+            @click="
+              button_loading = true; 
+              fetchAndRenderQuickAdd('{{ product.handle }}');
+              setTimeout(function(){ button_loading = false}, 500);
+            ">
+            <div 
+              class="btn__content">
+              {{ 'actions.add' | t }}
+            </div>
+            <div 
+              class="btn__spinner">
+              {% render 'component__icon', icon: 'spinner', size: '24', class: '' %}
+            </div>
+          </button>
+        {% endif %}
+
+      </form>
+    </div>
+    
+  </div>
+{% endcapture %}
+
+{% capture product_item %}
+  <div 
+    class="
+      border--radius upsell group relative flex w-full flex-none justify-center overflow-hidden whitespace-normal
+      {{ settings.product_card_color_border }}
+    ">
+
+    {% comment %} Content {% endcomment %}
+    <div 
+      class="
+        flex w-full items-start
+        {{ settings.product_card_color_scheme }} 
+      ">
+
+      {% comment %} Image {% endcomment %}
+      <div 
+        class="flex h-full w-[15%] flex-none justify-center overflow-hidden">
+        <a 
+          class="color__bg-shade-2 flex aspect-[1/1] h-full w-auto items-center object-cover hover:opacity-100"
+          href="{{ product.url }}">
+          {% render 'component__image', 
+            image: product.featured_image,
+            max_width: 200,
+            parent_class: 'h-full',
+            background_class: 'color__bg-shade-2',
+            container_class: 'h-full',
+            ratio_class: 'aspect-[1/1]',
+            crop_class: 'object-cover',
+            enable_lazy_load: true
+          %}
+        </a>
+      </div>
+
+      {% comment %} Content {% endcomment %}
+      <div 
+        class="type--small flex h-full w-full flex-grow items-start justify-between gap-2 p-4 text-left">
+
+          {% comment %} Title and price {% endcomment %}
+          <div>
+            
+            {% comment %} Title {% endcomment %}
+            <h3 
+              class="
+                {{ settings.product_card_title_capitilization }}
+                {{ settings.product_card_title_font }}
+                type--smaller !leading-tight
+              ">
+              {{ product.title }}
+            </h3>
+            
+            {% comment %} Prices {% endcomment %}
+            {% if is_approved_customer == true %}
+              {{ product_price }}
+            {% else %}
+              {% unless product.tags contains settings.account_hide_price_tag %}
+                {{ product_price }}
+              {% endunless %}
+            {% endif %}
+
+          </div>
+          
+          {% comment %} Quick add {% endcomment %}
+          {% if is_approved_customer == true %}
+            {{ product_add }}
+          {% else %}
+            {% unless product.tags contains settings.account_hide_price_tag %}
+              {{ product_add }}
+            {% endunless %}
+          {% endif %}
+          
+      </div>
+    
+    </div>
+
+  </div>
+{% endcapture %}
+
+{% if is_approved_customer == true %}
+  {{ product_item }}
+{% else %}
+  {% unless product.tags contains settings.account_hide_product_tag %}
+    {{ product_item }}
+  {% endunless %}
+{% endif %}

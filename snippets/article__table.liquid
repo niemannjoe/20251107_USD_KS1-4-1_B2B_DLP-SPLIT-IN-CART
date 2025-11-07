@@ -1,0 +1,42 @@
+{% comment %}
+  This snippet generates a table of contents for an article, dynamically creating a list of links to sections based on the article's metafields.
+
+  Globals:
+  - settings.gap_size: {integer} The gap size in pixels between items in the list.
+  - block.settings.spacing_top: {integer} The top padding in pixels for the list.
+  - block.settings.spacing_bottom: {integer} The bottom padding in pixels for the list.
+
+  Accepts:
+  - article: {Object} The article object containing metafields for the table of contents.
+
+  Usage:
+    {% render 'article__table', article: article %}
+
+  Recommendations:
+  - Use this snippet to enhance article navigation by providing a quick access point to key sections.
+{% endcomment %}
+
+{% assign table_of_contents = article.metafields.custom.table_of_contents | remove: '[' | remove: ']' | split: ',' %}
+
+{% if table_of_contents.size > 0 %}
+  <div 
+    id="article-table"
+    class="
+      {{ block.settings.color_border }}
+      {{ block.settings.style_border }}
+    "
+    style="
+      padding-top:{{ block.settings.spacing_top }}px;
+      padding-bottom:{{ block.settings.spacing_bottom }}px;
+    ">
+    <ol 
+      class="pl-0 opacity-50">
+      {% for link in table_of_contents %}
+        <li class="mb-2 list-none ">
+          <a class="no-underline type--small" href="#{{ link | handle }}">{{ link | remove: '"' }}</a>
+        </li>
+      {% endfor %}
+    </ol>
+  </div>
+{% endif %}
+

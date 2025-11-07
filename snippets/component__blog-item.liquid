@@ -1,0 +1,216 @@
+<!-- snippets/component__blog-item.liquid -->
+{% comment %}
+  A component that generates a thumbnail for a blog article. It accepts a Liquid object for the blog article and uses several properties to customize the appearance of the thumbnail.
+
+  Accepts:
+  - article: {Object} Liquid object for the blog article.
+
+  Globals:
+  - account_hide_blog_tag: {string} Sets the tag that hides blog posts from certain accounts.
+  - restricted_style: {string} Sets the style for restricted content.
+  - blog_card_border_style: {string} Class string to set border style.
+  - blog_card_color_border: {string} Class string to set border color.
+  - blog_card_color_scheme: {string} Class string to set color scheme.
+  - blog_cards_object: {string} Class string to set crop level.
+  - blog_card_title_font: {string} Set the font family for titles.
+  - blog_cards_title_capitlization: {string} Set the capitalization.
+  - blog_card_enable_author: {boolean} Boolean to show/hide author.
+  - blog_card_enable_summary: {boolean} Boolean to show/hide article summary.
+  - blog_card_enable_date: {boolean} Boolean to show/hide publication date.
+  - blog_card_enable_tags: {boolean} Boolean to show/hide article tags.
+
+  Usage:
+    {% render 'component__blog-item',
+      article: article
+    %}
+
+  Recommendations:
+  - This is commonly used on blog templates or article grid sections.
+  - To customize the appearance of the thumbnail, adjust the global settings.
+  - To use this component, pass in the article object when rendering.
+{% endcomment %}
+
+{% comment %} Check if approved customer {% endcomment %}
+{% liquid
+  assign is_approved_customer = false
+  if customer and settings.account_matching_tags == blank
+    assign is_approved_customer = true
+  endif
+  if customer.tags contains settings.account_matching_tags
+    assign is_approved_customer = true
+  endif
+  if settings.account_match_b2b and customer.b2b?
+    assign is_approved_customer = true
+  endif
+%}
+
+{% comment %} Capture date {% endcomment %}
+{% capture date %}{{ article.published_at | date: format: 'abbreviated_date' }}{% endcapture %}
+
+{% comment %} Set badge colors {% endcomment %}
+{% liquid
+  capture badge_background
+    if settings.blog_card_badge_scheme == 'light_outline' or settings.blog_card_badge_scheme == 'dark_outline'
+      echo 'trasnsparent'
+    else
+      echo settings.blog_card_badge_scheme
+    endif
+  endcapture
+  capture badge_foreground
+    if settings.blog_card_badge_scheme == 'light_outline'
+      echo 'light'
+    elsif settings.blog_card_badge_scheme == 'dark_outline'
+      echo 'dark'
+    else
+      echo settings.blog_card_badge_scheme
+    endif
+  endcapture
+%}
+
+{% capture blog_item %}
+  <a 
+    href="{{ article.url }}"
+    class="
+      group/blog border--radius relative flex flex-wrap content-start overflow-clip no-underline
+      hover:no-underline hover:opacity-90
+      {{ settings.blog_card_color_scheme }}
+      {{ settings.blog_card_color_border }} 
+      {% if settings.blog_card_color_scheme != 'bg-transparent after:bg-transparent' %}
+        p-4
+      {% endif %}
+      {% if settings.blog_card_color_border != 'transparent' %}
+        p-4
+      {% endif %}
+    ">
+    <div class="flex h-full w-full items-stretch gap-4">
+      
+      {% comment %} Image {% endcomment %}
+      {% if settings.blog_card_enable_image %}
+        <div
+          class="relative block w-1/5 self-start overflow-clip md:max-w-[100px]">
+          {% unless article.image == blank %}
+            {% render 'component__image',
+              image: article.image,
+              max_width: 200,
+              background_class: 'color__bg-shade-2',
+              image_class: 'w-full h-auto',
+              ratio_class: 'aspect-[1\/1] aspect-w-1 aspect-h-1',
+              crop_class: 'object-cover',
+              enable_lazy_load: true
+            %}
+          {% endunless %}
+        </div>
+      {% endif %}
+
+      {% comment %} Content {% endcomment %}
+      <div 
+        class="flex w-full flex-col flex-wrap justify-between gap-4 md:flex-row md:flex-nowrap">
+
+        {% comment %} Authror, date, title, tags {% endcomment %}
+        <div class="flex flex-col gap-2 md:w-1/1">
+          
+          <h3 
+            class="
+              m-0
+              {{ settings.blog_card_title_capitlization }}
+              {{ settings.blog_card_title_font }}
+            ">
+            {{ article.title }}
+          </h3>
+
+          {% if settings.blog_card_enable_author or settings.blog_card_enable_date %}
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {% if settings.blog_card_enable_author %}
+                <div class="flex items-center gap-2">
+                  <div class="type--smaller space-y-4 opacity-50">
+                    {{ article.author }}
+                  </div>
+                </div>
+              {% endif %}
+              {% if settings.blog_card_enable_date %}
+                <span class="type--smaller opacity-50">{{ date }}</span>
+              {% endif %} 
+            </div>
+          {% endif %}
+
+          {% if settings.blog_card_enable_tags and article.tags.size > 0 %}
+            <div class="flex items-center gap-2">
+              {% for tag in article.tags %}
+                {% capture badge_content %}{{ tag }}{% endcapture %}
+                {% render 'component__badge', 
+                  background: badge_background,
+                  text: badge_foreground,
+                  border: 'divider-1',
+                  content: badge_content 
+                %}
+              {% endfor %}
+            </div>
+          {% endif %}
+
+        </div>
+        
+        {% comment %} Article summary {% endcomment %}
+        {% if settings.blog_card_enable_summary %}
+          <p class="type--small space-y-2 opacity-75 md:flex-1">
+            {{ article.excerpt_or_content | truncate: 128 | strip_html | strip }}
+          </p>
+        {% endif %}
+
+      </div>
+
+    </div>
+  </a>
+{% endcapture %}
+
+{% capture blog_placeholder %}
+  {% if settings.restricted_style == 'placeholder' %}
+    <div 
+      class="
+        border--radius relative  flex w-full flex-wrap content-start overflow-clip
+        {{ settings.blog_card_color_scheme }}
+        {{ settings.blog_card_color_border }} 
+        {% if settings.blog_card_color_scheme != 'bg-transparent after:bg-transparent' %}
+          p-4
+        {% endif %}
+        {% if settings.blog_card_color_border != 'transparent' %}
+          p-4
+        {% endif %}
+      ">
+      <div class="flex h-full w-full items-stretch gap-4">
+
+        {% comment %} Image {% endcomment %}
+        {% if settings.blog_card_enable_image %}
+          <div
+            class="color__bg-shade-2 relative block aspect-1 w-1/5 self-start overflow-clip md:max-w-[100px]">
+          </div>
+        {% endif %}
+
+        {% comment %} Content {% endcomment %}
+        <div 
+          class="flex w-full flex-col flex-wrap items-start justify-between gap-4 md:flex-row md:flex-nowrap">
+          <a
+            class="no-underline"
+            {% if routes.account_login_url contains 'https' %}
+              href="{{ routes.account_login_url }}"
+            {% else %}
+              href="{{ routes.account_login_url }}"
+              @click.prevent="openAccount()"
+            {% endif %}>
+            {{ 'actions.login_to_view' | t }}
+          </a>
+        </div>
+
+      </div>
+    </div>
+  {% endif %}
+{% endcapture %}
+
+{% if is_approved_customer == true %}
+  {{ blog_item }}
+{% else %}
+  {% if article.tags contains settings.account_hide_blog_tag %}
+    {{ blog_placeholder }}
+  {% else %}
+    {{ blog_item }}
+  {% endif %}
+{% endif %}

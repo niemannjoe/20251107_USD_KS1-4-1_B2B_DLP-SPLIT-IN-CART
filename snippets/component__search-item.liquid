@@ -1,0 +1,95 @@
+<!-- snippets/component__search-item.liquid -->
+{% comment %}
+  Thumbnail grid item to display search results.
+
+  Accepts:
+    - item: {Object} Liquid object for search item
+
+  Globals:
+    - restricted_style: {string} Sets the style for restricted content.
+    - product_card_color_scheme: {string} Class string to set color scheme of the product card.
+    - product_card_color_border: {string} Class string to set border color of the product card.
+    - product_card_alignment: {string} Class string to set alignment of the product card.
+
+  Usage:
+    {% render 'component__search-item',
+      item: item %}
+
+  Recommendations:
+    - This snippet will display different snippets depending on the type of search result. For example if it's a product item we'll show a product thumbnail.
+{% endcomment %}
+
+{% comment %} Check if approved customer {% endcomment %}
+{% liquid
+  assign is_approved_customer = false
+  if customer and settings.account_matching_tags == blank
+    assign is_approved_customer = true
+  endif
+  if customer.tags contains settings.account_matching_tags
+    assign is_approved_customer = true
+  endif
+  if settings.account_match_b2b and customer.b2b?
+    assign is_approved_customer = true
+  endif
+%}
+
+{% if item.object_type == 'product' %}
+  {% render 'component__product-grid', product: item, source: 'sr-item' %}
+
+{% elsif item.object_type == 'article' %}
+  {% capture article_excerpt %}
+    {{ item.excerpt_or_content | strip_html | truncate: 100 }}
+  {% endcapture %}
+  {% capture article_login_to_view %}
+    {{ 'actions.login_to_view' | t }}
+  {% endcapture %}
+  {% capture blog_item %}
+    {% render 'component__content-item',
+      heading: item.title,
+      content: article_excerpt,
+      url: item.url,
+      image: item.image,
+      color_scheme: settings.product_card_color_scheme,
+      color_border: settings.product_card_color_border,
+      enable_padding: true,
+      layout_x_alignment: settings.product_card_alignment
+    %}
+  {% endcapture %}
+  {% capture blog_placeholder %}
+    {% if settings.restricted_style == 'placeholder' %}
+      {% render 'component__content-item',
+        content: article_login_to_view,
+        url: routes.account_login_url,
+        color_scheme: settings.product_card_color_scheme,
+        color_border: settings.product_card_color_border,
+        enable_padding: true,
+        enable_placeholder_image: true,
+        layout_x_alignment: settings.product_card_alignment
+      %}
+    {% endif %}
+  {% endcapture %}
+  {% if is_approved_customer == true %}
+    {{ blog_item }}
+  {% else %}
+    {% if item.tags contains settings.account_hide_blog_tag %}
+      {{ blog_placeholder }}
+    {% else %}
+      {{ blog_item }}
+    {% endif %}
+  {% endif %}
+
+{% elsif item.object_type == 'page' %}
+  {% capture page_excerpt %}
+    {{ item.content | strip_html | truncate: 100 }}
+  {% endcapture %}
+  {% render 'component__content-item',
+    heading: item.title,
+    content: page_excerpt,
+    url: item.url,
+    image: item.image,
+    color_scheme: settings.product_card_color_scheme,
+    color_border: settings.product_card_color_border,
+    enable_padding: true,
+    layout_x_alignment: settings.product_card_alignment
+  %}
+{% endif %}

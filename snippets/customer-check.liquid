@@ -1,0 +1,15 @@
+{% liquid
+      assign is_approved_customer = false
+      if customer and settings.account_matching_tags == blank
+        assign is_approved_customer = true
+      endif
+      if customer.tags contains settings.account_matching_tags
+        assign is_approved_customer = true
+      endif
+      if settings.account_match_b2b and customer.b2b?
+        assign is_approved_customer = true
+      endif
+      if settings.account_enable_full_restriction == false
+        assign is_approved_customer = true
+      endif
+    %}
