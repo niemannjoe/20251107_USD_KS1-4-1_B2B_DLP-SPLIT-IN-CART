@@ -1,0 +1,89 @@
+<!-- templates/customers/register.liquid -->
+{% assign redirect_url = request.path | append: '?account' %}
+{% if settings.account_redirect_url %}
+  {% assign redirect_url = settings.account_redirect_url | append: '' %}
+{% endif %}
+<section>
+  <div
+    class="
+      py-12
+      {{ settings.x_margin }}
+    "
+  >
+    <div class="flex w-full max-w-prose flex-col gap-4">
+      <h1>
+        {{ 'actions.sign_up' | t }}
+      </h1>
+
+      {% assign form_id = template.id | append: '-register' %}
+      {% form 'create_customer', id: form_id, class: 'flex flex-col gap-4 items-start', return_to: redirect_url %}
+        {% if form.errors %}
+          <div class="color__bg-shade-1 type--small border--radius p-2">
+            {{ form.errors | default_errors }}
+          </div>
+        {% endif %}
+
+        <div class="w-full">
+          <label
+            for="first_name"
+          >
+            {{- 'labels.name' | t -}}</label
+          ><br>
+          <input
+            id="first_name"
+            required
+            type="text"
+            name="customer[first_name]"
+            placeholder="{{ 'actions.name_placeholder' | t }}"
+          >
+        </div>
+
+        <div class="w-full">
+          <label
+            for="customer_email"
+          >
+            {{- 'labels.email' | t -}}</label
+          ><br>
+          <input
+            id="customer_email"
+            required
+            type="email"
+            name="customer[email]"
+            placeholder="{{ 'actions.email_placeholder' | t }}"
+          >
+        </div>
+
+        <div class="w-full">
+          <label
+            for="password"
+          >
+            {{- 'labels.password' | t -}}</label
+          ><br>
+          <input
+            id="password"
+            required
+            type="password"
+            autocomplete
+            name="customer[password]"
+            placeholder="{{ 'actions.enter_password' | t }}"
+          >
+        </div>
+
+        <button type="submit" class="btn">
+          {{ 'actions.sign_up' | t }}
+        </button>
+
+        <div class="border--t-width color__border-divider-1 flex w-full flex-col gap-4 pt-4">
+          <p>{{ 'info.already_have_account' | t }}</p>
+          <div class="flex gap-4">
+            <a href="{{ routes.account_login_url }}" class="btn btn--plain">
+              {{ 'actions.log_in' | t }}
+            </a>
+          </div>
+        </div>
+
+        <input type="hidden" name="return_to" value="{{ request.path }}/?account">
+      {% endform %}
+    </div>
+  </div>
+</section>

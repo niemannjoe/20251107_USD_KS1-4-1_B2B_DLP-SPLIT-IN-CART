@@ -1,0 +1,65 @@
+<!-- templates/customers/activate_account.liquid -->
+
+<section>
+  <div
+    class="
+      py-12
+      {{ settings.x_margin }}
+    "
+  >
+    <div class="flex w-full max-w-prose flex-col gap-4">
+      <h1>
+        {{ 'actions.activate' | t }}
+      </h1>
+
+      {% assign form_id = template.id | append: '-activate' %}
+      {% form 'activate_customer_password', id: form_id, class: 'flex flex-col gap-4 items-start' %}
+        {% if form.errors %}
+          <div class="color__bg-shade-1 type--small border--radius p-2">
+            {{ form.errors | default_errors }}
+          </div>
+        {% endif %}
+
+        <div class="w-full">
+          <label for="password">{{ 'labels.password' | t }}</label>
+          <input
+            id="password"
+            class="mb-4"
+            type="password"
+            name="customer[password]"
+          >
+        </div>
+
+        <div class="w-full">
+          <label for="password_confirmation">{{ 'actions.confirm_password' | t }}</label>
+          <input
+            id="password_confirmation"
+            class="mb-4"
+            type="password"
+            autocomplete
+            name="customer[password_confirmation]"
+          >
+        </div>
+
+        <div>
+          <button type="submit" class="btn">
+            {{ 'actions.activate' | t }}
+          </button>
+          <span class="px-2">{{ 'labels.or' | t | downcase }}</span>
+          <button type="submit" name="decline" class="btn btn--secondary">
+            {{ 'actions.decline_invitation' | t }}
+          </button>
+        </div>
+
+        <div class="border--t-width color__border-divider-1 flex w-full flex-col gap-4 pt-4">
+          <p>{{ 'info.already_have_account' | t }}</p>
+          <div class="flex gap-4">
+            <a href="{{ routes.account_login_url }}" class="btn btn--plain">
+              {{ 'actions.log_in' | t }}
+            </a>
+          </div>
+        </div>
+      {% endform %}
+    </div>
+  </div>
+</section>

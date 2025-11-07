@@ -1,0 +1,219 @@
+<!-- templates/customers/login.liquid -->
+{% assign redirect_url = request.path | append: '?account' %}
+{% if settings.account_redirect_url %}
+  {% assign redirect_url = settings.account_redirect_url | append: '' %}
+{% endif %}
+{% assign recover_redirect_url = '/account/login?recover' %}
+
+<style>
+  label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .04rem;
+  }
+  .mb-6 { margin-bottom: 1rem; }
+  .login .flex.w-full.max-w-prose.flex-col {
+    margin: 0 auto;
+    border: 1px solid #e8e8e8;
+    padding: 40px 0 0;
+    text-align: center;
+    align-items: center;
+    border-radius: 6px;
+   }
+  .login div#MOmyHeader {
+    width: 100%;
+  }
+  .login .w-full {
+    width: 100%;
+    text-align: left;
+}
+.login .btn {
+    padding: .5rem 1rem;
+    margin: 0 auto;
+    min-width: 200px;
+}
+.login p {
+  font-size: 11px !important;
+  width: 100%; 
+  text-align: center;
+}
+.login button.btn.btn--plain {
+    min-width: 160px;
+    color: #404040 !important;
+    font-size: 14px;
+}
+form#customer_login {
+    width: 100%;
+    padding: 0;
+}
+</style>
+
+<section class="login"
+  x-init="
+    {% if customer %}
+      window.location.href = '/account/'
+    {% endif %}
+  "
+>
+  <div
+    class="
+      py-12
+      {{ settings.x_margin }}
+    "
+    x-data="{ forgot_password: window.location.hash === '#recover' ? true : false }"
+  >
+    <div
+      class="w-full max-w-prose"
+      x-show="forgot_password"
+      x-cloak
+    >
+      <h1 class="mb-6">
+        {{ 'actions.reset_password' | t }}
+      </h1>
+      {% assign form_id = template.id | append: '-recover' %}
+      {% form 'recover_customer_password', id: form_id, return_to: recover_redirect_url %}
+        {% assign recover_success = form.posted_successfully? %}
+
+        {%- if recover_success == true -%}
+          <div class="color__bg-shade-1 type--small border--radius p-2">
+            {{ 'info.recover_success' | t }}
+          </div>
+        {%- endif -%}
+
+        {% if form.errors %}
+          <div class="color__bg-shade-1 type--small border--radius mb-4 p-2">
+            {{ form.errors | default_errors }}
+          </div>
+        {% endif %}
+
+        <label for="reset_customer_email">{{ 'labels.email' | t }}</label><br>
+        <input
+          id="reset_customer_email"
+          class="mb-4"
+          type="email"
+          name="email"
+          placeholder="{{ 'actions.email_placeholder' | t }}"
+        >
+
+        <button type="submit" class="btn mb-4">
+          {{ 'actions.reset_password' | t }}
+        </button>
+
+        <div class="border--t-width color__border-divider-1 pt-4">
+          <button
+            type="button"
+            class="btn btn--plain"
+            @click.prevent="forgot_password = false; window.location.hash = 'login';"
+          >
+            {{ 'actions.log_in' | t }}
+          </button>
+        </div>
+      {% endform %}
+    </div>
+
+    <div
+      class="flex w-full max-w-prose flex-col"
+      x-show="!forgot_password"
+    >
+      <h1 class="mb-6">
+        {{ 'actions.log_in' | t }}
+      </h1>
+      {% assign form_id = template.id | append: '-login' %}
+      {% form 'customer_login', class: 'flex flex-col items-start', return_to: redirect_url %}
+        <div class="accordion">Sign In as Sales</div>
+        <div class="accordion-panel">
+        {%- if recover_success == true -%}
+          <div class="color__bg-shade-1 type--small border--radius p-2">
+            {{ 'info.recover_success' | t }}
+          </div>
+        {%- endif -%}
+
+        {% if form.errors %}
+          <div class="color__bg-shade-1 type--small border--radius p-2">
+            {{ form.errors | default_errors }}
+          </div>
+        {% endif %}
+      
+
+        <div class="w-full">
+          <label for="customer_email">{{ 'labels.email' | t }}</label><br>
+          <input
+            id="customer_email"
+            type="email"
+            name="customer[email]"
+            placeholder="{{ 'actions.email_placeholder' | t }}"
+          >
+        </div>
+
+        <div class="w-full">
+          <label for="customer_password">{{ 'labels.password' | t }}</label><br>
+          <input
+            id="customer_password"
+            type="password"
+            autocomplete
+            name="customer[password]"
+            placeholder="{{ 'actions.enter_password' | t }}"
+          >
+        </div>
+
+        <button type="submit" class="btn" style="margin: 10px auto 10px;">
+          {{ 'actions.log_in' | t }}
+        </button>
+
+        <div class="flex w-full flex-col gap-1 pt-2">
+          <p>{{ 'info.dont_have_account' | t }}</p>
+          <div class="flex gap-4">
+            <button
+              type="button"
+              class="btn btn--plain"
+              @click="forgot_password = true; window.location.hash = 'recover';"
+            >
+              {{ 'actions.forgot_password' | t }}
+            </button>
+            <a href="{{ routes.account_register_url }}" class="btn btn--plain">
+              {{ 'actions.sign_up' | t }}
+            </a>
+          </div>
+        </div>
+
+        <input type="hidden" name="return_to" value="{{ request.path }}/?account">
+        </div>
+      {% endform %}
+
+
+
+
+
+
+
+
+<style>
+
+</style>
+
+<script>
+var acc = document.getElementsByClassName("accordion");
+var i;
+
+for (i = 0; i < acc.length; i++) {
+  acc[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var panel = this.nextElementSibling;
+    if (panel.style.maxHeight) {
+      panel.style.maxHeight = null;
+    } else {
+      panel.style.maxHeight = panel.scrollHeight + "px";
+    }
+  });
+}
+</script>
+
+      {% if settings.account_enable_shop_sign_in %}
+        <div class="border--t-width color__border-divider-1 flex w-full flex-col gap-4 pt-4">
+          <p>{{ 'info.shop_sign_in' | t }}</p>
+          {{ shop | login_button }}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</section>

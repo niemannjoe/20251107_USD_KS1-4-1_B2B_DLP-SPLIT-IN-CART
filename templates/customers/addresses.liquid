@@ -1,0 +1,149 @@
+<!-- templates/customers/order.liquid -->
+
+{% capture new_address_content %}
+  {% capture address_create_button %}
+    {{ 'actions.add_address' | t }}
+  {% endcapture %}
+
+  <section 
+    class="
+      border--b-width sticky top-0 z-20 hidden items-center justify-between p-4 md:flex
+    ">
+    <span class="flex items-center gap-2">
+      {{ 'labels.account' | t }}
+    </span>
+    <button class="btn btn--smaller
+      {{ settings.close_button_color }}"
+      title="{{ 'actions.close' | t }}"
+      @click="new_address_drawer = false;">
+      {% if settings.close_button_content contains 'icon' %}
+        {% render 'component__icon', icon: 'x', size: '20' %} 
+      {% endif %}
+      {% if settings.close_button_content contains 'text' %}
+        <span 
+          {% if settings.close_button_content contains 'icon' %}class="ml-1"{% endif %}>
+          {{ 'actions.close' | t }}
+        </span>
+      {% endif %}
+    </button>
+  </section>
+  <section 
+    class="
+      relative flex h-[inherit] flex-grow flex-col overflow-y-auto overflow-x-hidden
+    ">
+    {%
+      render 'addresses__form',
+      id: 'account_new_address_drawer',
+      action: customer.new_address,
+      cta: address_create_button
+    %}
+  </section>
+{% endcapture %}
+
+<section>
+  <div
+    class="
+      py-12
+      {{ settings.x_margin }}
+    "
+  >
+    {% comment %} Heading {% endcomment %}
+    <div class="border--b-width color__border-divider-1 flex w-full flex-col gap-4 pb-4">
+      <h1>
+        {{ 'labels.account' | t }}
+      </h1>
+    </div>
+
+    {% comment %} Logout {% endcomment %}
+    <div class="border--b-width color__border-divider-1 flex items-end justify-between gap-4">
+      <div class="flex items-center gap-2 py-4">
+        <div class="color__bg-shade-2 flex h-10 w-10 items-center justify-center rounded-full">
+          {{ customer.first_name | truncate: 1, '' | upcase }}
+        </div>
+        <div>
+          {{ customer.first_name }}
+          {{ customer.last_name }}
+          <div class="type--small opacity-50">
+            {{ customer.email }}
+          </div>
+        </div>
+      </div>
+      <div class="flex py-4">
+        <a
+          class="btn btn--smaller btn--plain"
+          href="{{ routes.account_logout_url }}"
+        >
+          {{- 'actions.log_out' | t -}}
+        </a>
+      </div>
+    </div>
+
+    {% comment %} Content {% endcomment %}
+    <div class="pt-6">
+      {% comment %} Tabs {% endcomment %}
+      <nav
+        class="border--b-width color__border-divider-1 color__bg-body sticky top-0 z-10 flex flex-wrap"
+      >
+        <div class="relative w-full pt-6">
+          <div class="inline-flex w-full snap-x gap-6 overflow-x-auto scroll-smooth whitespace-nowrap">
+            <div class="flex flex-none snap-start justify-center">
+              <a
+                class="type--big color__border-transparent border-b-2 pb-4 no-underline opacity-50"
+                href="{{ routes.account_url }}"
+              >
+                {{ 'labels.orders' | t }}
+              </a>
+            </div>
+            <div class="flex flex-none snap-start justify-center">
+              <a
+                class="type--big color__border-selected-2 border-b-2 pb-4 no-underline opacity-100"
+              >
+                {{ 'labels.addresses' | t }}
+              </a>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {% comment %} Addresses {% endcomment %}
+      <div
+        x-data="
+          {
+            new_address_drawer: false
+          }
+        "
+        x-init="
+          $watch('new_address_drawer', value => {
+            if (value) {
+              document.dispatchEvent(new CustomEvent('address-drawer-opened', {detail: {id: 'new_address_drawer'}}));
+            }
+          })
+        "
+      >
+        <div class="border--b-width color__border-divider-1 flex py-4">
+          <button
+            class="btn btn--secondary btn--smaller"
+            @click="new_address_drawer = true;"
+          >
+            {{ 'actions.add_address' | t }}
+          </button>
+        </div>
+        {% render 'component__dragdrawer',
+          drawer_id: 'new_address_drawer',
+          desktop_pos: 'right',
+          mobile_pos: 'bottom',
+          enable_full_height: true,
+          enable_focus_trap: true,
+          content: new_address_content
+        %}
+
+        {% paginate customer.addresses by 10 %}
+          {% for address in customer.addresses %}
+            {% render 'component__address-item', address: address %}
+          {% endfor %}
+          {% render 'component__pagination-default', paginate: paginate %}
+        {% endpaginate %}
+      </div>
+    </div>
+  </div>
+</section>
