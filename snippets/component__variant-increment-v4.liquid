@@ -1,0 +1,372 @@
+{% comment %}
+  MODIFIED: Restores logo-render-popup class to hidden button.
+  MODIFIED: Simplifies trigger logic with $refs + fallback querySelector.
+  MODIFIED: Adds more logging around cart calls.
+  MODIFIED (V4): Adds String() conversion and debug logs to init()
+{% endcomment %}
+
+{%- comment -%} Liquid variable setup (unchanged) {%- endcomment %}
+{%- assign step_quantity = variant.product.metafields.custom.step_quantity |
+ default: variant.quantity_rule.increment | default: 1 -%}
+{%- assign product_requires_modal = false -%}
+{%- if product.tags contains 'LogoUpload' -%}
+  {%- assign product_requires_modal = true -%}
+{%- endif -%}
+{% if is_overlay == true %}{% assign open_cart = false %}{% else %}{% assign open_cart = true %}{% endif %}
+{% assign quantity_break_array = variant.quantity_price_breaks |
+ sort: 'quantity' %}
+{% capture quantity_break_content %}
+  <div class="flex flex-col">
+    {% if customer.b2b?
+ %}<span class="type--smaller border--b-width color__border-divider-1 flex flex-col pb-1 opacity-75"><span class="type--smaller">{{ 'labels.min' | t }} {{ variant.quantity_rule.min }} • {{ 'labels.max' |
+ t }} {{ variant.quantity_rule.max }}</span><span class="type--smaller">{{ 'labels.increments_of' | t }} {{ variant.quantity_rule.increment }}</span></span>{% endif %}
+    {%- for price_break in quantity_break_array -%}<div class="type--smaller flex justify-between gap-2 py-1 {% unless forloop.last %}border--b-width color__border-divider-1{% endunless %}"><span>{{ price_break.minimum_quantity }}+</span><span>{% render 'component__format-price', price: price_break.price %}/{{ 'labels.each' |
+ t | downcase }}</span></div>{%- endfor -%}
+  </div>
+{% endcapture %}
+
+  <div
+    class="{{ parent_class }}"
+    x-data="{
+      button_loading: false,
+      quantity: '',
+      variantId: {{ variant.id }},
+      variantTitle: '{{ variant.title | escape }}',
+      productId: {{ variant.product.id }},
+      requiresModal: {{ product_requires_modal | json }},
+      get isModalApproved() { return sessionStorage.getItem('modalApproved_' + this.productId) === 'true'; },
+      desiredQuantity: null,
+
+   
+     get cartItem() { return (cart.variantMap && cart.variantMap[this.variantId]) || null; },
+      get isInCart() { return !!this.cartItem; },
+
+      // ===== START: UPDATED INIT FUNCTION =====
+      init() {
+        console.log('--- V4 COMPONENT LOADED ---');
+        console.log(`Alpine init for variant ${this.variantId} (Product: ${this.productId})`);
+        this.updateQuantity();
+        this.$watch('cartItem?.quantity', () => { this.updateQuantity(); });
+        
+        window.addEventListener('modal:approved', (e) => {
+          // --- NEW DEBUG LOG ---
+          // This will log for EVERY variant component on the page when the event fires
+          console.log(`Alpine (Variant ${this.variantId}): Heard 'modal:approved' event for product ID ${e.detail.productId}.`);
+
+          // --- FIX: Convert both IDs to strings for a reliable comparison ---
+          if (String(e.detail.productId) === String(this.productId)) { 
+            console.log(`%cAlpine (Variant ${this.variantId}): Product IDs MATCH! Setting session storage flag.`, 'color: green; font-weight: bold;');
+            
+            // We only need to set the sessionStorage.
+            // The getter will read it.
+            sessionStorage.setItem('modalApproved_' + this.productId, 'true');
+          }
+        });
+      },
+      // ===== END: UPDATED INIT FUNCTION =====
+
+      updateQuantity() { this.quantity = this.cartItem ? this.cartItem.quantity : '';
+ },
+
+      triggerModalWithQuantity(qty) {
+        if (qty >= 0) { 
+          const cartKey = this.cartItem ?
+ this.cartItem.key : null;
+          
+          let triggerButton = this.$refs.modalTrigger_{{ variant.id }};
+          if (!triggerButton) {
+            console.warn(`Could not find $refs.modalTrigger_{{ variant.id }}, trying querySelector...`);
+ triggerButton = this.$el.querySelector('.hidden-modal-trigger-button');
+          }
+
+          if (triggerButton) {
+            console.log(`Dispatching modal:open event with quantity: ${qty}, key: ${cartKey}`);
+ window.dispatchEvent(new CustomEvent('modal:open', { 
+              detail: { 
+                desiredQuantity: qty,
+                cartKey: cartKey,
+                productId: this.productId,
+                triggerElement: triggerButton
+             
+  } 
+            }));
+ } else {
+            console.error('CRITICAL ERROR: Could NOT find hidden modal trigger button.');
+ alert('An error occurred. Could not open the logo modal.');
+          }
+
+        } else { 
+          console.warn('triggerModalWithQuantity: Quantity was invalid:', qty);
+ }
+      },
+
+// ===== NEW HANDLEINPUTBLUR FUNCTION =====
+    handleInputBlur(event) {
+      
+      // ===== NEW FIX: STOP OTHER SCRIPTS =====
+      if (this.requiresModal) {
+        console.log('Input blurred: Logo product detected, stopping event propagation.');
+        event.stopPropagation();
+      }
+      
+      let newQuantity = Number(this.quantity);
+      const step = {{ step_quantity }}; 
+
+      if (isNaN(newQuantity) || newQuantity < 0) { 
+        console.warn('Input blurred: Invalid quantity', this.quantity);
+        this.updateQuantity(); 
+        return;
+      }
+
+      if (newQuantity > 0 && newQuantity % step !== 0) {
+        newQuantity = Math.ceil(newQuantity / step) * step;
+        console.log(`Input quantity adjusted to step ${step}. New quantity: ${newQuantity}`);
+        this.quantity = newQuantity;
+      }
+
+      this.desiredQuantity = newQuantity;
+      const currentCartItem = this.cartItem;
+      const currentCartQty = currentCartItem ? currentCartItem.quantity : 0;
+
+      if (newQuantity === currentCartQty) { 
+        console.log('Input blurred: Quantity unchanged.');
+        return;
+      }
+
+      // --- START: FINAL LOGIC FIX ---
+      if (this.requiresModal) {
+        if (this.isModalApproved) {
+          // 1. IS APPROVED: Silently add/update the item.
+          console.log('Input blurred: Modal IS approved. Silently updating/adding item.');
+          this.button_loading = true;
+          window.addApprovedLogoItemToCart(
+            this.variantId, 
+            this.desiredQuantity, // Send the new TOTAL quantity
+            this.productId, 
+            this.variantTitle
+          ).finally(() => {
+              setTimeout(() => this.button_loading = false, 500);
+          });
+          return; // Stop here.
+        } else {
+          // 2. NOT APPROVED: Modal is required.
+          console.log('Input blurred: Modal NOT approved. Triggering modal.');
+          this.triggerModalWithQuantity(this.desiredQuantity);
+          return;
+        }
+      }
+      // --- END: FINAL LOGIC FIX ---
+
+      // This code block will now ONLY run for NON-LOGO products.
+      console.log('Input blurred: Standard (NON-LOGO) cart update.');
+      this.button_loading = true;
+      if (currentCartItem) {
+        console.log(`Calling changeCartItemQuantityDebounced(${currentCartItem.key}, ${this.desiredQuantity})`);
+        changeCartItemQuantityDebounced( currentCartItem.key, this.desiredQuantity, {{ open_cart }}, false, event.target )
+          .catch(error => { console.error('Error in changeCartItemQuantityDebounced (blur):', error); })
+          .finally(() => {
+            setTimeout(() => this.button_loading = false, 500);
+            fetch('/cart.js').then(response => response.json()).then(newCartData => {
+              if (typeof updateCart === 'function') { updateCart(newCartData); }
+              else { console.error('Theme function updateCart is not defined globally.'); document.dispatchEvent(new CustomEvent('cart:updated', { bubbles: true })); }
+            }).catch(error => { console.error('Error fetching /cart.js after update:', error); document.dispatchEvent(new CustomEvent('cart:updated', { bubbles: true })); });
+          });
+      } else if (this.desiredQuantity > 0) {
+        console.log(`Calling addCartItemDebounced(${this.variantId}, ${this.desiredQuantity})`);
+        addCartItemDebounced( this.variantId, 0, this.desiredQuantity, {{ open_cart }}, false, event.target )
+          .catch(error => { console.error('Error in addCartItemDebounced (blur):', error); })
+          .finally(() => {
+            setTimeout(() => this.button_loading = false, 500);
+            fetch('/cart.js').then(response => response.json()).then(newCartData => {
+              if (typeof updateCart === 'function') { updateCart(newCartData); }
+              else { console.error('Theme function updateCart is not defined globally.'); document.dispatchEvent(new CustomEvent('cart:updated', { bubbles: true })); }
+            }).catch(error => { console.error('Error fetching /cart.js after update:', error); document.dispatchEvent(new CustomEvent('cart:updated', { bubbles: true })); });
+          });
+      } else { 
+        console.log('Input blurred: Quantity is 0, not adding.');
+        this.button_loading = false; 
+        this.updateQuantity();
+      }
+    },
+      
+    // ===== NEW HANDLEINCREMENTCLICK FUNCTION =====
+    handleIncrementClick(event) {
+
+      // ===== NEW FIX: STOP OTHER SCRIPTS =====
+      if (this.requiresModal) {
+        console.log('Input blurred: Logo product detected, stopping event propagation.');
+        event.stopPropagation();
+      }
+
+      const currentQuantity = Number(this.quantity) || 0;
+      const nextQuantity = currentQuantity + {{ step_quantity }};
+      const currentCartItem = this.cartItem;
+
+      // --- START: FINAL LOGIC FIX ---
+      if (this.requiresModal) {
+        if (this.isModalApproved) {
+          // 1. IS APPROVED: Silently add/update the item.
+          console.log('Increment clicked: Modal IS approved. Silently updating/adding item.');
+          this.button_loading = true;
+          window.addApprovedLogoItemToCart(
+            this.variantId, 
+            nextQuantity, // Send the new TOTAL quantity
+            this.productId, 
+            this.variantTitle
+          ).finally(() => {
+              setTimeout(() => this.button_loading = false, 500);
+          });
+          return; // Stop here.
+        } else {
+          // 2. NOT APPROVED: Modal is required.
+          console.log('Increment clicked: Modal NOT approved. Triggering modal.'); 
+          this.triggerModalWithQuantity(nextQuantity); 
+          return;
+        }
+      }
+      // --- END: FINAL LOGIC FIX ---
+
+      // This code block will now ONLY run for NON-LOGO products.
+      console.log('Increment clicked: Standard (NON-LOGO) cart update.');
+      this.button_loading = true;
+
+      if (currentCartItem) {
+        console.log(`Calling changeCartItemQuantityDebounced(${currentCartItem.key}, ${nextQuantity})`);
+        changeCartItemQuantityDebounced( currentCartItem.key, nextQuantity, {{ open_cart }}, false, event.currentTarget )
+          .catch(error => { console.error('Error in changeCartItemQuantityDebounced (inc):', error); })
+          .finally(() => {
+          setTimeout(() => this.button_loading = false, 500);
+            fetch('/cart.js').then(response => response.json()).then(newCartData => {
+              if (typeof updateCart === 'function') { updateCart(newCartData); }
+              else { console.error('Theme function updateCart is not defined globally.'); document.dispatchEvent(new CustomEvent('cart:updated', { bubbles: true })); }
+            }).catch(error => { console.error('Error fetching /cart.js after update:', error); document.dispatchEvent(new CustomEvent('cart:updated', { bubbles: true }));
+            });
+          });
+      } else {
+        console.log(`Calling addCartItemDebounced(${this.variantId}, ${nextQuantity})`);
+        addCartItemDebounced( this.variantId, 0, nextQuantity, {{ open_cart }}, false, event.currentTarget )
+          .catch(error => { console.error('Error in addCartItemDebounced (inc):', error); })
+          .finally(() => {
+          setTimeout(() => this.button_loading = false, 500);
+            fetch('/cart.js').then(response => response.json()).then(newCartData => {
+              if (typeof updateCart === 'function') { 
+                updateCart(newCartData); }
+              else { console.error('Theme function updateCart is not defined globally.'); document.dispatchEvent(new CustomEvent('cart:updated', { bubbles: true })); }
+            }).catch(error => { console.error('Error fetching /cart.js after update:', error); document.dispatchEvent(new CustomEvent('cart:updated', { bubbles: true })); });
+          });
+      }
+    },
+
+      // ===== NEW HANDLEDECREMENTCLICK FUNCTION =====
+      handleDecrementClick(event) {
+        const currentQuantity = Number(this.quantity);
+ const nextQuantity = Math.max(0, currentQuantity - {{ step_quantity }});
+        const currentCartItem = this.cartItem;
+ // --- NEW, CORRECTED LOGIC ---
+        if (this.requiresModal && this.isModalApproved) {
+            // IS APPROVED: Hijack the cart logic and use our merging function.
+ console.log('Decrement clicked: Modal approved, silently updating item.');
+            this.button_loading = true;
+ window.addApprovedLogoItemToCart(
+              this.variantId, 
+              nextQuantity, // Send the new TOTAL quantity
+              this.productId, 
+              this.variantTitle
+            ).finally(() => {
+                setTimeout(() => this.button_loading = false, 500);
+ 
+             });
+            return; // Stop here.
+ }
+        // --- END NEW LOGIC ---
+
+        // This code block will now ONLY run for NON-LOGO products.
+ this.button_loading = true;
+        if (currentCartItem) {
+          console.log(`Calling changeCartItemQuantityDebounced(${currentCartItem.key}, ${nextQuantity})`);
+ changeCartItemQuantityDebounced( currentCartItem.key, nextQuantity, {{ open_cart }}, false, event.target )
+            .catch(error => { console.error('Error in changeCartItemQuantityDebounced (dec):', error); })
+            .finally(() => {
+            setTimeout(() => this.button_loading = false, 500);
+              console.log('Cart operation complete. Fetching updated cart data...');
+              fetch('/cart.js').then(response => response.json()).then(newCartData => {
+   
+               console.log('Fetched new cart data. Calling updateCart...');
+                if (typeof updateCart === 'function') { updateCart(newCartData); }
+              else { console.error('Theme function updateCart is not defined globally.'); document.dispatchEvent(new CustomEvent('cart:updated', { bubbles: true })); }
+              }).catch(error => { console.error('Error fetching /cart.js after update:', error); document.dispatchEvent(new CustomEvent('cart:updated', { bubbles: true }));
+  
+            });
+            });
+ } else { 
+          console.log('Decrement: Item NOT in cart.');
+ this.button_loading = false; 
+          this.quantity = ''; 
+        }
+      },
+    }
+    "
+  >
+
+  {% comment %}
+    ==================================================================
+    == Hidden button has logo-render-popup CLASS, uses x-ref AND generic class ==
+    ==================================================================
+  {% endcomment %}
+  <button
+    type="button"
+    class="logo-render-popup hidden hidden-modal-trigger-button" {# <-- HAS logo-render-popup NOW #}
+    :data-variant-id="variantId"
+    x-ref="modalTrigger_{{ variant.id }}" {# <-- Keep x-ref for primary attempt #}
+    aria-hidden="true"
+    tabindex="-1"
+  ></button>
+ 
+   {% comment %} ================================================================ {% endcomment %}
+
+
+  {% comment %} Template - when item is in cart (structure unchanged) {% endcomment %}
+  <div class="flex w-full items-center justify-between {{ container_class }}" x-show="isInCart" x-cloak>
+    <div class="group relative w-full">
+      <label class="sr-only" for="{{ section.id }}-{{ variant.id }}-quantity">{{ 'labels.quantity' |
+ t }}</label>
+      <div class="border__input--radius border__input color__border-input hover:border__input--hover focus-within:border__input--focus relative flex overflow-hidden {{ input_class }}">
+        <input id="{{ section.id }}-{{ variant.id }}-quantity" class="!rounded-none !border-0 text-center" :class="{ 'pdp-input-element': !requiresModal }" type="number" placeholder="0" min="{{ min_quantity }}" step="{{ step_quantity }}" x-model="quantity" @blur="handleInputBlur($event)">
+        <div class="invisible absolute left-0 top-0 h-0.5 w-full overflow-hidden" :class="{ '!visible !z-10' : button_loading && cart_loading }"><div class="color__bg-shade-2"><div class="color__bg-text h-0.5 w-0" :class="{ 'animate-widthexpand': button_loading && cart_loading }"></div></div></div>
+        <div class="color__bg-input color__input border--r-width color__border-divider-1 absolute left-0 flex h-full flex-col justify-center 
+ gap-0"><button class="btn btn--smaller btn--plain !h-full shrink-0 !rounded-none !border-0 !px-2" title="{{ 'actions.decrease_item_quantity' |
+ t }}" type="button" tabindex="-1" @click.prevent="handleDecrementClick($event)">{% render 'component__icon', icon: 'minus', size: '14', class: '' %}</button></div>
+        <div class="color__bg-input color__input border--l-width color__border-divider-1 absolute right-0 flex h-full flex-col justify-center gap-0" data-variant-id="{{ variant.id }}"><button class="btn btn--smaller btn--plain !h-full shrink-0 !rounded-none !border-0 !px-2" title="{{ 'actions.increase_item_quantity' |
+ t }}" type="button" tabindex="-1" :disabled="button_loading || quantity >= {{ variant.inventory_quantity }} && '{{ variant.inventory_policy }}' == 'deny' && '{{ variant.inventory_management }}' != ''" @click.prevent="handleIncrementClick($event)" :data-variant-id="requiresModal ?
+ null : '{{ variant.id }}'">{% render 'component__icon', icon: 'plus', size: '14', class: '' %}</button></div>
+      </div>
+      {% if variant.quantity_price_breaks.size > 0 %}{% render 'component__tooltip', content: quantity_break_content, background: 'text', text: 'light', tip: 'left', container_class: 'mt-4' %}{% endif %}
+    </div>
+    {% if show_totals %}<span class="hidden flex-col items-end md:flex"><span class="type--smaller opacity-75"> {{ 'labels.total' | t }}: </span><span x-html="cartItem ?
+ Shopify.formatMoney(cartItem.line_price) : Shopify.formatMoney(0)"></span></span>{% endif %}
+  </div>
+
+  {% comment %} Template - when item is not in cart (structure unchanged) {% endcomment %}
+  <div class="flex w-full items-center justify-between {{ container_class }}" x-show="!isInCart">
+    <div class="group relative w-full">
+      <label class="sr-only" for="{{ section.id }}-{{ variant.id }}-quantity-new">{{ 'labels.quantity' | t }}</label>
+      <div class="border__input--radius border__input color__border-input hover:border__input--hover focus-within:border__input--focus relative flex overflow-hidden {{ input_class }}">
+        <input id="{{ section.id }}-{{ variant.id }}-quantity-new" class="!rounded-none !border-0 text-center {% unless variant.available %}cursor-not-allowed{% endunless %}" :class="{ 'pdp-input-element': !requiresModal }" 
+ type="number" placeholder="0" min="{{ min_quantity }}" step="{{ step_quantity }}" x-model="quantity" {% unless variant.available %}disabled{% endunless %} @blur="handleInputBlur($event)">
+        <div class="invisible absolute left-0 top-0 h-0.5 w-full overflow-hidden" :class="{ '!visible !z-10' : button_loading && cart_loading }"><div class="color__bg-shade-2"><div class="color__bg-text h-0.5 w-0" :class="{ 'animate-widthexpand': button_loading && cart_loading }"></div></div></div>
+        <div class="color__bg-input color__input border--r-width color__border-divider-1 absolute left-0 flex h-full flex-col justify-center gap-0"><button class="btn btn--smaller btn--plain !h-full shrink-0 !rounded-none !border-0 !px-2 {% unless variant.available %}!cursor-not-allowed{% endunless %}" title="{{ 'actions.decrease_item_quantity' |
+ t }}" type="button" disabled tabindex="-1" @click.prevent="handleDecrementClick($event)">{% render 'component__icon', icon: 'minus', size: '14', class: '' %}</button></div>
+        <div class="color__bg-input color__input border--l-width color__border-divider-1 absolute right-0 flex h-full flex-col justify-center gap-0" {% if product.tags contains 'LogoUpload' %}data-variant-id="{{ variant.id }}"{% endif %}><button class="btn btn--smaller btn--plain !h-full shrink-0 !rounded-none !border-0 !px-2 {% unless variant.available %}!cursor-not-allowed{% endunless %}" title="{{ 'actions.increase_item_quantity' |
+ t }}" type="button" {% unless variant.available %}disabled{% endunless %} tabindex="-1" @click.prevent="handleIncrementClick($event)" :data-variant-id="requiresModal ?
+ null : '{{ variant.id }}'">{% render 'component__icon', icon: 'plus', size: '14', class: '' %}</button></div>
+      </div>
+      {% if variant.quantity_price_breaks.size > 0 %}{% render 'component__tooltip', content: quantity_break_content, background: 'text', text: 'light', tip: 'left', container_class: 'mt-4' %}{% endif %}
+    </div>
+    {% if show_totals %}<span class="hidden flex-col items-end md:flex"><span class="type--smaller opacity-75"> {{ 'labels.total' | t }}: </span><span>{% render 'component__format-price', price: 0 %}</span></span>{% endif %}
+  </div>
+
+  <div class="type--smaller p-1 text-center opacity-70" style="text-align:left;">
+    <span>Sold in multiples of {{ step_quantity }}</span>
+  </div>
+
+</div>
